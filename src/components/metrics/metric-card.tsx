@@ -16,6 +16,8 @@ interface MetricCardProps {
   readonly partialLabel?: string;
   readonly accent?: "orange" | "blue";
   readonly footer?: ReactNode;
+  /** List the inputs still missing (off for aggregates, where the list would be long). */
+  readonly showMissing?: boolean;
   readonly className?: string;
 }
 
@@ -30,6 +32,7 @@ export function MetricCard({
   partialLabel,
   accent,
   footer,
+  showMissing = true,
   className,
 }: MetricCardProps) {
   const shownBasis = basis ?? (quantity && quantity.kind !== "missing" ? quantity.basis : null);
@@ -47,10 +50,14 @@ export function MetricCard({
         {status ?? (quantity ? <QuantityStatus quantity={quantity} calculatedLabel={calculatedLabel} partialLabel={partialLabel} /> : null)}
       </div>
       <div className="text-2xl leading-tight sm:text-[1.7rem]">
-        {quantity ? <QuantityValue quantity={quantity} /> : <span className="figure font-semibold">{value}</span>}
+        {quantity ? (
+          <QuantityValue quantity={quantity} className={quantity.kind === "missing" ? "text-xl" : undefined} />
+        ) : (
+          <span className="font-semibold">{value}</span>
+        )}
       </div>
       {shownBasis ? <p className="figure text-xs leading-relaxed text-muted">{shownBasis}</p> : null}
-      {quantity ? <QuantityMissing quantity={quantity} /> : null}
+      {quantity && showMissing ? <QuantityMissing quantity={quantity} /> : null}
       {footer}
     </Card>
   );

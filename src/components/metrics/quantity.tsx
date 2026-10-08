@@ -17,10 +17,10 @@ export function QuantityValue({
   className?: string;
 }) {
   if (quantity.kind === "missing") {
-    return <span className={cn("font-semibold text-caution", className)}>{quantity.label}</span>;
+    return <span className={cn("font-semibold text-caution sm:whitespace-nowrap", className)}>{quantity.label}</span>;
   }
   return (
-    <span className={cn("figure font-semibold", className)} title={formatEgp(quantity.value)}>
+    <span className={cn("font-semibold", className)} title={formatEgp(quantity.value)}>
       {compact ? formatEgpCompact(quantity.value) : formatEgp(quantity.value)}
     </span>
   );
