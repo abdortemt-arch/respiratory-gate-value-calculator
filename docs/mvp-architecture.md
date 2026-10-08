@@ -243,7 +243,7 @@ Colours sampled from the logo files and the workbook:
 - **Secrets** come only from environment variables. `.env.example` documents `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (server only). Nothing secret is committed.
 - **RLS on every table**, deny by default; the audit log is append-only and written only by triggers.
 - **Transport and storage**: HTTPS everywhere (Vercel); Supabase encrypts at rest. Backup and point-in-time-recovery availability depends on the Supabase plan; confirm before go-live.
-- **Hosting region / data residency.** Supabase eu-central-1 (Frankfurt) and Vercel fra1 — Supabase offers no Middle East or Africa region. Phase 1 holds no PHI, but user accounts (names, emails) are personal data under Egypt's Personal Data Protection Law (Law No. 151 of 2020); hospital IT and legal should confirm the region before production data is entered.
+- **Hosting region / data residency.** A European Supabase region — staging runs in eu-west-2 (London) with Vercel functions in lhr1; Frankfurt (eu-central-1 / fra1) is the alternative. Supabase offers no Middle East or Africa region. Phase 1 holds no PHI, but user accounts (names, emails) are personal data under Egypt's Personal Data Protection Law (Law No. 151 of 2020); hospital IT and legal should confirm the region before production data is entered.
 - **Before any PHI** is introduced, the `CLAUDE.md` gate applies: hosting and residency, encryption, audit, backup and retention, access policies, local regulation, and hospital legal/IT sign-off.
 
 ## 12. Testing and quality gates
@@ -286,7 +286,7 @@ Steps 2 and 3 can run in parallel because the engine has no UI dependency.
 | Overlapping levers overstate cost avoidance (Rule 4) | Show levers individually, label the total "undeduplicated", resolve Q2 with Finance |
 | Partial operating cost makes the net value look like profit (F4) | `partial` status, "Provisional" badge, report wording; Finance enters 0 for lines that do not apply |
 | Package price and 100% uptake are commercial assumptions (Rule 2, F14) | Basis text and guardrail copy on every revenue figure; Q1 |
-| Hosting region / PDPL compliance | Frankfurt chosen (no MENA region on Supabase); confirm with hospital IT and legal before production data |
+| Hosting region / PDPL compliance | Europe (staging: London; no MENA region on Supabase); confirm with hospital IT and legal before production data |
 | LibreOffice vs Excel recalculation differences | Functions used are standard; Finance spot-checks one populated scenario in Excel |
 | Low-resolution / raster-only logo files | Interim trimmed PNGs; request SVG originals |
 | Scope creep toward portals | Phase 1 boundary in `CLAUDE.md`; reserved roles only |

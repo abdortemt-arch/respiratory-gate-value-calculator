@@ -19,7 +19,7 @@ Secrets never go into chat, the repository or logs: you paste them only into Sup
 
 1. **supabase.com → New project**
    - Name: `respiratory-gate-staging` (any name).
-   - Region: **Central EU (Frankfurt) — `eu-central-1`**. Supabase has no Middle East or Africa region; Frankfurt is the closest practical region to Egypt and sits next to the Vercel functions (`fra1`).
+   - Region: a European region — Supabase has no Middle East or Africa region. The staging project uses **West Europe (London) — `eu-west-2`**; Frankfurt (`eu-central-1`) is equally close to Egypt. Whatever you choose, the Vercel function region in `vercel.json` must match it (`lhr1` for London, `fra1` for Frankfurt) so every database query stays in-region.
    - Database password: use **Generate a password**, store it in your password manager. (If you type your own, use letters and digits only — it goes into a URL.)
 2. **Authentication → Sign In / Providers**
    - **Allow new users to sign up: OFF** (accounts are created by Admins only).
@@ -49,7 +49,7 @@ Leave *Deployment protection rules* at their defaults.
 
 ## 3. Vercel project (≈ 5 minutes)
 
-1. **vercel.com → Add New → Project → Import** `abdortemt-arch/respiratory-gate-value-calculator` (grant the Vercel GitHub app access to the repository if asked). Keep the detected settings — `vercel.json` already sets Next.js, `pnpm install --frozen-lockfile` and the function region **`fra1` (Frankfurt)**.
+1. **vercel.com → Add New → Project → Import** `abdortemt-arch/respiratory-gate-value-calculator` (grant the Vercel GitHub app access to the repository if asked). Keep the detected settings — `vercel.json` already sets Next.js, `pnpm install --frozen-lockfile` and the function region **`lhr1` (London)**, next to the staging database.
 2. Before clicking **Deploy**, open **Environment Variables** and add (all environments is fine):
 
    | Name | Value | Notes |
@@ -137,9 +137,9 @@ Hospitals cannot be deleted in the app (history is kept by design). To remove `T
 | Supabase → Authentication → Sign In / Providers | Allow new users to sign up | **Off** |
 | Supabase → Authentication → Sign In / Providers | Email | **On** |
 | Supabase → Authentication → URL Configuration | Site URL / Redirect URLs | Preview URL / `https://*-<team>.vercel.app/**` |
-| Supabase → Project Settings → General | Region | Central EU (Frankfurt) |
+| Supabase → Project Settings → General | Region | West Europe (London) `eu-west-2` |
 | Vercel → Settings → Environment Variables | 3 variables | Present for Preview; service-role key marked Sensitive |
-| Vercel → Settings → Functions | Region | Frankfurt (`fra1`) (from `vercel.json`) |
+| Vercel → Settings → Functions | Region | London (`lhr1`) (from `vercel.json`) |
 | Vercel → Settings → Deployment Protection | Vercel Authentication | On for previews |
 | GitHub → Settings → Environments → staging | 5 secrets | Present |
 

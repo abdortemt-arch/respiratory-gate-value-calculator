@@ -82,7 +82,7 @@ This creates the schema, hospital-level row-level security and audit triggers; t
 
 ### 3. Deploy on Vercel
 
-1. **Add New → Project → Import** this GitHub repository. Framework is detected as Next.js; `vercel.json` sets the function region to **`fra1` (Frankfurt)** next to the database.
+1. **Add New → Project → Import** this GitHub repository. Framework is detected as Next.js; `vercel.json` sets the function region to **`lhr1` (London)**, next to the staging database (`eu-west-2`). Keep it equal to the database region (`fra1` if the database is in Frankfurt).
 2. **Settings → Environment Variables**: add the three variables above for *Production* (and *Preview* if you use previews). Mark `SUPABASE_SERVICE_ROLE_KEY` as **Sensitive**.
 3. **Deploy.** Until the variables exist, every page shows a *Setup required* screen listing which names are missing (never their values). After adding or changing variables, **redeploy**.
 
