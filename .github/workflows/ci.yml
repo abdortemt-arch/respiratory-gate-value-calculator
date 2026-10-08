@@ -25,10 +25,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - name: No secrets in the repository; service-role key only in server-only code
+        run: pnpm check:secrets
       - run: pnpm typecheck
       - run: pnpm test
       # Builds without Supabase credentials on purpose: the app must build before it is configured.
       - run: pnpm build
+      - name: Nothing secret in the browser bundle
+        run: pnpm check:secrets --bundle
 
   integration:
     name: RLS + end-to-end against local Supabase
@@ -44,12 +48,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Start local Supabase (Docker)
         run: pnpm db:start
+      - name: Schema matches supabase/schema-manifest.json
+        run: pnpm db:manifest
+      - name: Hosted-verification script (against the local stack)
+        run: >-
+          SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          node scripts/db/with-local-supabase.mjs sh -c
+          'SUPABASE_URL=$TEST_SUPABASE_URL SUPABASE_ANON_KEY=$TEST_SUPABASE_ANON_KEY pnpm db:verify-hosted'
       - name: Database policy and audit tests
         run: pnpm test:db
       - name: Configure app for the local stack
         run: pnpm db:env
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
+      - name: Browser bundle does not contain the service-role key
+        run: node scripts/db/with-local-supabase.mjs pnpm check:secrets --bundle
       - name: Start app
         run: |
           pnpm start > next.log 2>&1 &

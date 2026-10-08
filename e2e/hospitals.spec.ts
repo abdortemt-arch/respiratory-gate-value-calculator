@@ -269,6 +269,44 @@ test("a hospital manager sees and edits only their own hospital", async ({ page 
   await expect(page.getByText(/Only an Admin can lock, reopen or correct/)).toBeVisible();
 });
 
+test("a viewer reads reports but cannot change anything", async ({ page }) => {
+  const email = `viewer-a-${Date.now()}@e2e.test`;
+  const password = `Vwr-${Date.now()}-pass`;
+  const { data, error } = await world.service.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw error;
+  await world.service.from("profiles").insert({ user_id: data.user.id, organization_id: world.orgId, full_name: "Viewer A", role: "viewer" }).throwOnError();
+  await world.service.from("hospital_members").insert({ hospital_id: hospitalA, user_id: data.user.id, role: "viewer" }).throwOnError();
+
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/hospitals$/);
+  await expect(page.getByRole("link", { name: "Hospital A" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Hospital B" })).toHaveCount(0);
+
+  await page.goto(`/hospitals/${hospitalA}/departments`);
+  await expect(page.getByRole("button", { name: "Add department" })).toHaveCount(0);
+  await page.goto(`/hospitals/${hospitalA}/pricing`);
+  await expect(page.getByRole("button", { name: "Add price" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Void/ })).toHaveCount(0);
+  await page.goto(`/hospitals/${hospitalA}/periods/2026-02`);
+  await expect(page.getByLabel("NIV — AICU Volume")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save volumes" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Finalize month" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Audit log" })).toHaveCount(0);
+
+  // Reports: January after the audited correction (105 × EGP 1,500) and its operating cost.
+  await page.goto(`/hospitals/${hospitalA}/reports?p=2026-01`);
+  await expect(page.getByRole("heading", { name: "Hospital A · January 2026" })).toBeVisible();
+  const key = page.getByRole("region", { name: "Key figures" });
+  await expect(key.getByRole("row", { name: /^Revenue/ })).toContainText("EGP 157,500");
+  await expect(key.getByRole("row", { name: /^Operating cost/ })).toContainText("EGP 100,000");
+  await expect(page.getByRole("button", { name: "Print / Save as PDF" })).toBeVisible();
+  await page.goto(`/hospitals/${hospitalA}/comparisons?mode=month&a=2026-01&b=2026-02`);
+  await expect(page.getByText("NIV: price EGP 1,500 → EGP 1,800")).toBeVisible();
+});
+
 test("hospital pages fit a phone screen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);

@@ -69,7 +69,7 @@ on conflict (organization_id, scenario_name) do nothing;
 `;
 }
 
-export const WORKBOOK_TEMPLATES_MIGRATION = "supabase/migrations/20261009000100_workbook_templates.sql";
+export const WORKBOOK_TEMPLATES_MIGRATION = "supabase/migrations/20261008100100_workbook_templates.sql";
 
 /**
  * Template rows for the Elite / Workbook Value Model, copied into a hospital by

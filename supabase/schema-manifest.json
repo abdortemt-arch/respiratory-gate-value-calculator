@@ -1,0 +1,1496 @@
+{
+  "tables": [
+    {
+      "name": "audit_log",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "cost_items",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "cost_versions",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "equipment",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospital_departments",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospital_inputs",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospital_members",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospital_service_departments",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospital_services",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "hospitals",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "operating_periods",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "organizations",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "period_cost_entries",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "period_savings",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "period_stats",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "profiles",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "scenario_assumptions",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "service_activity",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "service_price_timeline",
+      "kind": "v",
+      "rls": false
+    },
+    {
+      "name": "service_price_versions",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "services",
+      "kind": "r",
+      "rls": true
+    },
+    {
+      "name": "workbook_input_templates",
+      "kind": "r",
+      "rls": true
+    }
+  ],
+  "policies": [
+    {
+      "table": "audit_log",
+      "name": "audit_log_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_write",
+      "cmd": "ALL",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "organizations",
+      "name": "organizations_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "organizations",
+      "name": "organizations_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_delete",
+      "cmd": "DELETE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_delete",
+      "cmd": "DELETE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_delete",
+      "cmd": "DELETE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenarios_delete",
+      "cmd": "DELETE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenarios_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenarios_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenarios_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_delete",
+      "cmd": "DELETE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "services",
+      "name": "services_insert",
+      "cmd": "INSERT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "services",
+      "name": "services_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "services",
+      "name": "services_update",
+      "cmd": "UPDATE",
+      "roles": [
+        "authenticated"
+      ]
+    },
+    {
+      "table": "workbook_input_templates",
+      "name": "templates_select",
+      "cmd": "SELECT",
+      "roles": [
+        "authenticated"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "schema": "private",
+      "name": "actor_name",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "affects_closed_periods",
+      "args": "h uuid, from_month date, next_from date",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_change",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_hospital_input",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_label",
+      "args": "tbl text, r jsonb",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_organization",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_profile",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_scenario",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "audit_text",
+      "args": "v jsonb",
+      "securityDefiner": false
+    },
+    {
+      "schema": "private",
+      "name": "can_read_hospital",
+      "args": "h uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "can_write_hospital",
+      "args": "h uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "check_member",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "current_org_id",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "guard_period_data",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "guard_version",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "has_role",
+      "args": "VARIADIC roles app_role[]",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "hospital_role",
+      "args": "h uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "is_hospital_admin",
+      "args": "h uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "is_org_admin",
+      "args": "org uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "keep_one_admin",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "normalize_hospital",
+      "args": "",
+      "securityDefiner": false
+    },
+    {
+      "schema": "private",
+      "name": "scenario_rules",
+      "args": "",
+      "securityDefiner": false
+    },
+    {
+      "schema": "private",
+      "name": "seed_library_for_new_org",
+      "args": "",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "seed_service_library",
+      "args": "org uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "private",
+      "name": "stamp_hospital_input",
+      "args": "",
+      "securityDefiner": false
+    },
+    {
+      "schema": "private",
+      "name": "touch",
+      "args": "",
+      "securityDefiner": false
+    },
+    {
+      "schema": "public",
+      "name": "enable_workbook_model",
+      "args": "p_hospital uuid",
+      "securityDefiner": true
+    },
+    {
+      "schema": "public",
+      "name": "set_default_scenario",
+      "args": "scenario_id uuid",
+      "securityDefiner": false
+    },
+    {
+      "schema": "public",
+      "name": "set_period_status",
+      "args": "p_period uuid, p_status period_status, p_reason text, p_snapshot jsonb",
+      "securityDefiner": true
+    }
+  ],
+  "triggers": [
+    {
+      "table": "cost_items",
+      "name": "cost_items_audit"
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_touch"
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_audit"
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_guard"
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_audit"
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_touch"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_audit"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_touch"
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_audit"
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_stamp"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_audit"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_check"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_touch"
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_audit"
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_touch"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_audit"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_touch"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_audit"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_normalize"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_touch"
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_audit"
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_touch"
+    },
+    {
+      "table": "organizations",
+      "name": "organizations_audit"
+    },
+    {
+      "table": "organizations",
+      "name": "organizations_seed_library"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_audit"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_guard"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_touch"
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_audit"
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_guard"
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_touch"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_audit"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_guard"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_touch"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_audit"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_keep_one_admin"
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenario_assumptions_audit"
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenario_assumptions_rules"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_audit"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_guard"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_touch"
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_audit"
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_guard"
+    },
+    {
+      "table": "services",
+      "name": "services_audit"
+    },
+    {
+      "table": "services",
+      "name": "services_touch"
+    }
+  ],
+  "indexes": [
+    {
+      "table": "audit_log",
+      "name": "audit_log_entity_idx"
+    },
+    {
+      "table": "audit_log",
+      "name": "audit_log_hospital_idx"
+    },
+    {
+      "table": "audit_log",
+      "name": "audit_log_org_time_idx"
+    },
+    {
+      "table": "audit_log",
+      "name": "audit_log_pkey"
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_hospital_id_id_key"
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_hospital_id_idx"
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_name_idx"
+    },
+    {
+      "table": "cost_items",
+      "name": "cost_items_pkey"
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_hospital_id_idx"
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_month_idx"
+    },
+    {
+      "table": "cost_versions",
+      "name": "cost_versions_pkey"
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_hospital_id_id_key"
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_hospital_id_idx"
+    },
+    {
+      "table": "equipment",
+      "name": "equipment_pkey"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_hospital_id_id_key"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_hospital_id_idx"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_name_idx"
+    },
+    {
+      "table": "hospital_departments",
+      "name": "hospital_departments_pkey"
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_hospital_key_key"
+    },
+    {
+      "table": "hospital_inputs",
+      "name": "hospital_inputs_pkey"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_hospital_id_user_id_key"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_pkey"
+    },
+    {
+      "table": "hospital_members",
+      "name": "hospital_members_user_idx"
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_hospital_service_id_department_key"
+    },
+    {
+      "table": "hospital_service_departments",
+      "name": "hospital_service_departments_pkey"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_hospital_id_id_key"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_hospital_id_idx"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_hospital_id_service_id_key"
+    },
+    {
+      "table": "hospital_services",
+      "name": "hospital_services_pkey"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_org_name_idx"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_organization_id_code_key"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_organization_id_id_key"
+    },
+    {
+      "table": "hospitals",
+      "name": "hospitals_pkey"
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_hospital_id_id_key"
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_hospital_id_period_month_key"
+    },
+    {
+      "table": "operating_periods",
+      "name": "operating_periods_pkey"
+    },
+    {
+      "table": "organizations",
+      "name": "organizations_pkey"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_hospital_id_period_id_idx"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_period_id_cost_item_id_key"
+    },
+    {
+      "table": "period_cost_entries",
+      "name": "period_cost_entries_pkey"
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_hospital_id_period_id_idx"
+    },
+    {
+      "table": "period_savings",
+      "name": "period_savings_pkey"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_hospital_id_period_id_idx"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_period_id_department_id_key"
+    },
+    {
+      "table": "period_stats",
+      "name": "period_stats_pkey"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_organization_idx"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_pkey"
+    },
+    {
+      "table": "profiles",
+      "name": "profiles_user_id_key"
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenario_assumptions_hospital_name_key"
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenario_assumptions_one_default"
+    },
+    {
+      "table": "scenario_assumptions",
+      "name": "scenario_assumptions_pkey"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_hospital_id_period_id_idx"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_period_id_hospital_service_id_department_i_key"
+    },
+    {
+      "table": "service_activity",
+      "name": "service_activity_pkey"
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_hospital_id_idx"
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_month_idx"
+    },
+    {
+      "table": "service_price_versions",
+      "name": "service_price_versions_pkey"
+    },
+    {
+      "table": "services",
+      "name": "services_name_idx"
+    },
+    {
+      "table": "services",
+      "name": "services_organization_id_id_key"
+    },
+    {
+      "table": "services",
+      "name": "services_pkey"
+    },
+    {
+      "table": "workbook_input_templates",
+      "name": "workbook_input_templates_pkey"
+    }
+  ],
+  "enums": [
+    {
+      "name": "app_role",
+      "labels": [
+        "admin",
+        "manager",
+        "viewer",
+        "referring_physician",
+        "patient"
+      ]
+    },
+    {
+      "name": "billing_unit",
+      "labels": [
+        "per_procedure",
+        "per_patient",
+        "per_session",
+        "per_day",
+        "per_ventilator_day",
+        "per_hour",
+        "per_case",
+        "monthly_package",
+        "fixed_contract",
+        "percentage",
+        "custom"
+      ]
+    },
+    {
+      "name": "input_source_type",
+      "labels": [
+        "hospital_data",
+        "verified_public",
+        "rg_assumption"
+      ]
+    },
+    {
+      "name": "period_status",
+      "labels": [
+        "draft",
+        "in_review",
+        "finalized",
+        "locked"
+      ]
+    },
+    {
+      "name": "savings_level",
+      "labels": [
+        "low",
+        "mid",
+        "high"
+      ]
+    },
+    {
+      "name": "scenario_status",
+      "labels": [
+        "draft",
+        "approved",
+        "archived"
+      ]
+    }
+  ],
+  "tablePrivileges": {
+    "audit_log": [
+      "authenticated:SELECT"
+    ],
+    "cost_items": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "cost_versions": [
+      "authenticated:SELECT",
+      "authenticated:INSERT"
+    ],
+    "equipment": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "hospital_departments": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "hospital_inputs": [
+      "authenticated:SELECT"
+    ],
+    "hospital_members": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE",
+      "authenticated:DELETE"
+    ],
+    "hospital_service_departments": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "hospital_services": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "hospitals": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "operating_periods": [
+      "authenticated:SELECT"
+    ],
+    "organizations": [
+      "authenticated:SELECT"
+    ],
+    "period_cost_entries": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE",
+      "authenticated:DELETE"
+    ],
+    "period_savings": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE",
+      "authenticated:DELETE"
+    ],
+    "period_stats": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE",
+      "authenticated:DELETE"
+    ],
+    "profiles": [
+      "authenticated:SELECT"
+    ],
+    "scenario_assumptions": [
+      "authenticated:SELECT",
+      "authenticated:DELETE"
+    ],
+    "service_activity": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE",
+      "authenticated:DELETE"
+    ],
+    "service_price_timeline": [
+      "authenticated:SELECT"
+    ],
+    "service_price_versions": [
+      "authenticated:SELECT",
+      "authenticated:INSERT"
+    ],
+    "services": [
+      "authenticated:SELECT",
+      "authenticated:INSERT",
+      "authenticated:UPDATE"
+    ],
+    "workbook_input_templates": [
+      "authenticated:SELECT"
+    ]
+  },
+  "columnPrivileges": {
+    "cost_versions": [
+      "authenticated:UPDATE(void_reason,voided)"
+    ],
+    "hospital_inputs": [
+      "authenticated:UPDATE(numeric_value,text_value)"
+    ],
+    "operating_periods": [
+      "authenticated:INSERT(hospital_id,notes,period_month)",
+      "authenticated:UPDATE(notes)"
+    ],
+    "organizations": [
+      "authenticated:UPDATE(name)"
+    ],
+    "profiles": [
+      "authenticated:INSERT(active,full_name,organization_id,role,user_id)",
+      "authenticated:UPDATE(active,full_name,role)"
+    ],
+    "scenario_assumptions": [
+      "authenticated:INSERT(high_savings_pct,hospital_id,low_savings_pct,mid_savings_pct,occupancy_rate,organization_id,package_price,savings_level,scenario_name)",
+      "authenticated:UPDATE(approved_snapshot,high_savings_pct,is_default,low_savings_pct,mid_savings_pct,occupancy_rate,package_price,savings_level,scenario_name,status)"
+    ],
+    "service_price_versions": [
+      "authenticated:UPDATE(void_reason,voided)"
+    ]
+  },
+  "functionPrivileges": {
+    "private.actor_name()": [],
+    "private.affects_closed_periods(h uuid, from_month date, next_from date)": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_change()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_hospital_input()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_label(tbl text, r jsonb)": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_organization()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_profile()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_scenario()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.audit_text(v jsonb)": [
+      "anon",
+      "authenticated"
+    ],
+    "private.can_read_hospital(h uuid)": [
+      "authenticated"
+    ],
+    "private.can_write_hospital(h uuid)": [
+      "authenticated"
+    ],
+    "private.check_member()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.current_org_id()": [
+      "authenticated"
+    ],
+    "private.guard_period_data()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.guard_version()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.has_role(VARIADIC roles app_role[])": [
+      "authenticated"
+    ],
+    "private.hospital_role(h uuid)": [
+      "authenticated"
+    ],
+    "private.is_hospital_admin(h uuid)": [
+      "authenticated"
+    ],
+    "private.is_org_admin(org uuid)": [
+      "authenticated"
+    ],
+    "private.keep_one_admin()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.normalize_hospital()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.scenario_rules()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.seed_library_for_new_org()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.seed_service_library(org uuid)": [
+      "anon",
+      "authenticated"
+    ],
+    "private.stamp_hospital_input()": [
+      "anon",
+      "authenticated"
+    ],
+    "private.touch()": [
+      "anon",
+      "authenticated"
+    ],
+    "public.enable_workbook_model(p_hospital uuid)": [
+      "authenticated"
+    ],
+    "public.set_default_scenario(scenario_id uuid)": [
+      "authenticated"
+    ],
+    "public.set_period_status(p_period uuid, p_status period_status, p_reason text, p_snapshot jsonb)": [
+      "authenticated"
+    ]
+  }
+}

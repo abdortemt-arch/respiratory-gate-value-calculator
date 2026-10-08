@@ -40,6 +40,8 @@ scripts/           workbook parity fixtures, user bootstrap, logo preparation
 
 ## Deploy: Supabase + Vercel + GitHub
 
+> **Staging first.** Before merging to `main`, deploy and verify the branch with `docs/staging-deployment.md`: hosted Supabase project, Vercel preview, and the automated `Staging` workflow (migration plan, migrations, schema/RLS verification, hosted end-to-end tests).
+
 You provide three values. Nothing secret is stored in the repository.
 
 | Variable | Where it comes from | Exposure |
@@ -139,6 +141,9 @@ pnpm dev               # http://localhost:3000
 | `pnpm test:db` | Hospital-level RLS, cross-hospital foreign keys, immutable versions, period locking, audited corrections, column grants and audit triggers through the real Supabase Auth + API — including the NIV figures read back from Postgres (needs `pnpm db:start`) |
 | `pnpm test:e2e` | In a browser: the 20-step multi-hospital acceptance flow, costs and corrections, hospital-scoped managers, the workbook model (inputs, recalculation, audit, roles, temporary passwords, report), phone layouts (needs `pnpm db:start` + a running app) |
 | `pnpm lint` / `pnpm typecheck` / `pnpm build` | Static checks, including import boundaries that keep `src/domain` framework-free |
+| `pnpm check:secrets [--bundle]` | No keys, JWTs or database passwords in tracked files; the service-role key only in server-only code; nothing secret in the browser bundle |
+| `pnpm db:manifest` | The migrated database matches `supabase/schema-manifest.json` (tables, RLS, policies, functions, triggers, indexes, grants) |
+| `pnpm db:verify-hosted` | Read-only verification of a hosted project: migrations, schema vs manifest, reference data, no demo data, sign-up disabled, anonymous access refused |
 
 CI (`.github/workflows/ci.yml`) runs all of the above on every push.
 

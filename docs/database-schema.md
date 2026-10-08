@@ -1,6 +1,6 @@
 # Database Schema (Supabase Postgres)
 
-Status: **implemented.** The source of truth is `supabase/migrations/`: `20261008000000_init.sql` (Phase 1 schema, RLS and triggers), `20261008000100_reference_data.sql` (reference data), `20261009000000_multi_hospital.sql` (multi-hospital platform, §8–§12) and `20261009000100_workbook_templates.sql` (workbook model template). This document explains the design. Behaviour is verified through the real Supabase Auth + Data API by `supabase/tests/rls.test.ts` and `supabase/tests/hospitals.test.ts`.
+Status: **implemented.** The source of truth is `supabase/migrations/`: `20261008000000_init.sql` (Phase 1 schema, RLS and triggers), `20261008000100_reference_data.sql` (reference data), `20261008100000_multi_hospital.sql` (multi-hospital platform, §8–§12) , `20261008100100_workbook_templates.sql` (workbook model template) and `20261008100200_view_privileges.sql` (explicit view grants). This document explains the design. Behaviour is verified through the real Supabase Auth + Data API by `supabase/tests/rls.test.ts` and `supabase/tests/hospitals.test.ts`.
 
 §1–§6 describe the Phase 1 tables (the Workbook Value Model); since the multi-hospital migration they are scoped by `hospital_id` as well as `organization_id`.
 
@@ -219,7 +219,7 @@ Multiple hospitals and monthly reporting periods are now built (§8–§12). Sti
 
 ---
 
-## 8. Multi-hospital platform (migration `20261009000000_multi_hospital.sql`)
+## 8. Multi-hospital platform (migration `20261008100000_multi_hospital.sql`)
 
 The organisation is now the platform operator (*Respiratory Gate Egypt*); each client hospital is configured independently. Configuration (what a hospital **is**) is separate from monthly operating data (what **happened**), and prices and costs are effective-dated versions, so a month is always calculated with the versions in force that month.
 

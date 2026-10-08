@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:secrets": "tsx scripts/ci/check-secrets.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -14,6 +15,8 @@
     "db:start": "supabase start -x studio,imgproxy,vector,logflare,realtime,storage-api,edge-runtime,supavisor",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/server/supabase/database.types.ts",
+    "db:manifest": "tsx scripts/db/schema-manifest.ts",
+    "db:verify-hosted": "tsx scripts/db/verify-hosted.ts",
     "test:db": "node scripts/db/with-local-supabase.mjs vitest run supabase/tests",
     "user:create": "tsx --env-file-if-exists=.env.local scripts/create-user.ts",
     "db:demo": "tsx --env-file-if-exists=.env.local scripts/db/demo-data.ts",
@@ -52,6 +55,6 @@
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   }
 }

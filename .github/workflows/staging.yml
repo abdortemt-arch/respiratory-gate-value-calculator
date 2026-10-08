@@ -1,0 +1,195 @@
+name: Staging
+
+# Hosted Supabase project + Vercel preview. Runs only when explicitly triggered
+# by pushing a tag on the commit to test (works from any branch, so main is not
+# needed):
+#
+#   staging-check-<n>    read-only: migration state, dry-run plan, Auth/API checks
+#   staging-migrate-<n>  apply pending migrations (after a dry run), then verify
+#   staging-verify-<n>   verify the database, hosted RLS tests, end-to-end tests
+#                        against the Vercel preview of this commit, test cleanup
+#
+# Credentials live in the GitHub environment "staging" (Settings → Environments),
+# never in the repository: STAGING_SUPABASE_DB_URL, STAGING_SUPABASE_URL,
+# STAGING_SUPABASE_ANON_KEY, STAGING_SUPABASE_SERVICE_ROLE_KEY,
+# VERCEL_AUTOMATION_BYPASS_SECRET. Optional variable: STAGING_PREVIEW_URL.
+
+on:
+  push:
+    tags: ["staging-check-*", "staging-migrate-*", "staging-verify-*"]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: check | migrate | verify
+        type: choice
+        options: [check, migrate, verify]
+        default: check
+      preview_url:
+        description: Preview URL (optional; found automatically from the Vercel deployment)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  deployments: read
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  database:
+    name: Database (${{ github.event_name == 'workflow_dispatch' && inputs.mode || github.ref_name }})
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      mode: ${{ steps.mode.outputs.mode }}
+    env:
+      SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then mode="${{ inputs.mode }}"
+          else case "$GITHUB_REF_NAME" in staging-migrate-*) mode=migrate ;; staging-verify-*) mode=verify ;; *) mode=check ;; esac
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Mode: $mode · commit $GITHUB_SHA"
+      - name: Staging secrets are configured
+        run: |
+          missing=""
+          for v in SUPABASE_DB_URL SUPABASE_URL SUPABASE_ANON_KEY; do [ -n "${!v}" ] || missing="$missing $v"; done
+          if [ -n "$missing" ]; then echo "::error::Missing in environment 'staging':$missing (prefix STAGING_)"; exit 1; fi
+          case "$SUPABASE_URL" in https://*.supabase.co) ;; *) echo "::error::STAGING_SUPABASE_URL must look like https://<ref>.supabase.co"; exit 1 ;; esac
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Migration state (read-only)
+        run: pnpm db:verify-hosted --before-migrate
+      - name: Migration plan (dry run, read-only)
+        run: pnpm exec supabase db push --db-url "$SUPABASE_DB_URL" --skip-vault --dry-run
+      - name: Apply migrations
+        if: steps.mode.outputs.mode == 'migrate'
+        # Seed data is never pushed (no --include-seed); config.toml settings are not pushed.
+        run: pnpm exec supabase db push --db-url "$SUPABASE_DB_URL" --skip-vault --yes
+      - name: Verify schema, reference data, Auth and API
+        if: steps.mode.outputs.mode != 'check'
+        run: pnpm db:verify-hosted
+      - name: Verify Auth and API (schema checked after migrating)
+        if: steps.mode.outputs.mode == 'check'
+        run: pnpm db:verify-hosted --api-only
+
+  rls:
+    name: Hosted RLS and audit tests
+    needs: database
+    if: needs.database.outputs.mode == 'verify'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      TEST_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      TEST_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Service-role secret is configured
+        run: '[ -n "$TEST_SUPABASE_SERVICE_ROLE_KEY" ] || { echo "::error::STAGING_SUPABASE_SERVICE_ROLE_KEY is missing"; exit 1; }'
+      # Each test creates its own isolated organisation ("RLS test …", "Hospitals test …") and removes it.
+      - name: RLS, versioning, locking, corrections, audit (hosted)
+        run: pnpm exec vitest run supabase/tests
+
+  e2e:
+    name: End-to-end on the Vercel preview
+    needs: [database, rls]
+    if: needs.database.outputs.mode == 'verify'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      TEST_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      TEST_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the preview deployment of this commit
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIVEN: ${{ inputs.preview_url || vars.STAGING_PREVIEW_URL }}
+        run: |
+          if [ -n "$GIVEN" ]; then url="$GIVEN"
+          else
+            for i in $(seq 1 40); do
+              url=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$GITHUB_SHA&per_page=20" --jq '.[].statuses_url' |
+                while read -r s; do gh api "$s" --jq '[.[] | select(.state == "success")][0].environment_url // empty'; done | head -n 1)
+              [ -n "$url" ] && break
+              echo "Waiting for the Vercel preview of $GITHUB_SHA ($i/40)…"; sleep 30
+            done
+          fi
+          if [ -z "$url" ]; then echo "::error::No successful Vercel preview for $GITHUB_SHA (set STAGING_PREVIEW_URL or check Vercel)"; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url"
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Preview responds (deployment protection bypass works)
+        env:
+          URL: ${{ steps.preview.outputs.url }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$URL/sign-in")
+          echo "GET /sign-in → $code"
+          [ "$code" = "200" ] || { echo "::error::Preview returned $code (missing env vars, failed build, or protection bypass)"; exit 1; }
+      - name: End-to-end tests against the preview (hosted Supabase)
+        env:
+          E2E_BASE_URL: ${{ steps.preview.outputs.url }}
+          CI: "true"
+        run: pnpm exec playwright test
+      - name: Remove any test organisations left by an interrupted run
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+        run: pnpm exec tsx scripts/db/remove-test-orgs.ts --yes
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  after:
+    name: Database after the tests
+    needs: [e2e]
+    if: always() && needs.database.outputs.mode == 'verify'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      SUPABASE_DB_URL: ${{ secrets.STAGING_SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Schema intact, no demo data, no test leftovers
+        run: pnpm db:verify-hosted
