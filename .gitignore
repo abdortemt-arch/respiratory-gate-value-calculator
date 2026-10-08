@@ -1,13 +1,41 @@
-.env
-.env.local
-.env.*.local
-node_modules/
-.next/
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+/playwright-report
+/test-results
+
+# next.js
+/.next/
+/out/
+/build
 dist/
-build/
-.vercel/
+next-env.d.ts
+*.tsbuildinfo
+
+# environment: never commit real values
+.env
+.env.*
+!.env.example
+
+# vercel / supabase local state
+.vercel
+supabase/.temp
+supabase/.branches
+
+# misc
 .DS_Store
+*.pem
 *.log
+npm-debug.log*
+.pnpm-debug.log*
+
+# python tooling
 __pycache__/
 *.pyc
+
+# LibreOffice lock files
 .~lock.*#
