@@ -74,8 +74,9 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
   afterAll(async () => {
     if (!service) return;
     for (const u of Object.values(users)) if (u) await service.auth.admin.deleteUser(u.id);
-    await service.from("audit_log").delete().eq("organization_id", orgId);
+    // Scenarios first: deleting them writes audit rows.
     await service.from("scenario_assumptions").delete().eq("organization_id", orgId);
+    await service.from("audit_log").delete().eq("organization_id", orgId);
     await service.from("hospital_inputs").delete().eq("organization_id", orgId);
     await service.from("profiles").delete().eq("organization_id", orgId);
     await service.from("organizations").delete().eq("id", orgId);
