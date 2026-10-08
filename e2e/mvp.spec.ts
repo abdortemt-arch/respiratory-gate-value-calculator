@@ -102,6 +102,7 @@ test("viewer must replace the temporary password and is read-only", async ({ pag
   await expect(page.getByRole("link", { name: "Audit" })).toHaveCount(0);
   await page.goto("/audit");
   await expect(page).toHaveURL(/\/overview\?denied=1/);
+  await expect(page.getByText("That page is not available for your role")).toBeVisible();
   await page.goto("/overview");
   await expect(page.getByRole("button", { name: "Save as scenario" })).toHaveCount(0);
 });

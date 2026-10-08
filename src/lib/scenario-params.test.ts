@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WORKBOOK_DEFAULT_SCENARIO } from "@/domain/scenario";
-import { isModified, parseScenarioParams, resolveScenario, scenarioQuery, type SavedScenario } from "./scenario-params";
+import { isModified, parseScenarioParams, resolveScenario, SCENARIO_PARAM_KEYS, scenarioQuery, type SavedScenario } from "./scenario-params";
 
 const saved = (id: string, isDefault: boolean, occupancyRate = 0.8): SavedScenario => ({
   id,
@@ -43,5 +43,12 @@ describe("scenario URL params", () => {
 
   it("falls back to the workbook default when no scenarios exist", () => {
     expect(resolveScenario({}, []).settings).toEqual(WORKBOOK_DEFAULT_SCENARIO);
+  });
+});
+
+describe("scenario parameter keys", () => {
+  it("lists exactly the keys scenarioQuery writes", () => {
+    const q = new URLSearchParams(scenarioQuery({ ...BOARD.settings, packagePrice: 1, occupancyRate: 0.5, savingsLevel: "low" }, BOARD));
+    expect([...q.keys()].sort()).toEqual([...SCENARIO_PARAM_KEYS].sort());
   });
 });

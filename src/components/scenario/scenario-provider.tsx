@@ -4,7 +4,7 @@ import { createContext, use, useEffect, useMemo, useState, type ReactNode } from
 import { calculateModel, type ModelResult } from "@/domain/calculations";
 import { OCCUPANCY_SCENARIO_KEYS, PRICE_SCENARIO_KEYS, type InputKey, type InputValues } from "@/domain/inputs/catalog";
 import type { ScenarioSettings } from "@/domain/scenario";
-import { isModified, scenarioQuery, type SavedScenario } from "@/lib/scenario-params";
+import { isModified, SCENARIO_PARAM_KEYS, scenarioQuery, type SavedScenario } from "@/lib/scenario-params";
 
 export interface ScenarioOption {
   readonly value: number;
@@ -64,9 +64,13 @@ export function ScenarioProvider({
   const model = useMemo(() => calculateModel(values, settings, texts), [values, settings, texts]);
 
   useEffect(() => {
-    const target = `${window.location.pathname}${scenarioQuery(settings, base)}${window.location.hash}`;
-    if (target !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-      window.history.replaceState(null, "", target);
+    // Rewrite only the scenario parameters; keep any others (e.g. ?denied=1).
+    const params = new URLSearchParams(window.location.search);
+    for (const key of SCENARIO_PARAM_KEYS) params.delete(key);
+    for (const [key, value] of new URLSearchParams(scenarioQuery(settings, base))) params.set(key, value);
+    const search = params.size ? `?${params}` : "";
+    if (search !== window.location.search) {
+      window.history.replaceState(null, "", `${window.location.pathname}${search}${window.location.hash}`);
     }
   }, [settings, base]);
 

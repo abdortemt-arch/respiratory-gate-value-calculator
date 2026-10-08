@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { SCENARIO_PARAM_KEYS } from "@/lib/scenario-params";
 import type { NavItem } from "./nav-items";
 
 const ICONS: Record<NavItem["icon"], LucideIcon> = {
@@ -27,13 +28,11 @@ const ICONS: Record<NavItem["icon"], LucideIcon> = {
   settings: Settings,
 };
 
-const SCENARIO_KEYS = ["scenario", "occ", "price", "level"];
-
 export function NavLinks({ items, onNavigate }: { items: readonly NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const scenarioQuery = new URLSearchParams();
-  for (const key of SCENARIO_KEYS) {
+  for (const key of SCENARIO_PARAM_KEYS) {
     const v = searchParams.get(key);
     if (v) scenarioQuery.set(key, v);
   }

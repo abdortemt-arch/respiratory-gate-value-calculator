@@ -26,6 +26,9 @@ export interface ScenarioParams {
 
 type SearchParamsLike = URLSearchParams | Record<string, string | string[] | undefined>;
 
+/** Query parameters owned by the scenario selection; everything else is left alone. */
+export const SCENARIO_PARAM_KEYS = ["scenario", "occ", "price", "level"] as const;
+
 function get(sp: SearchParamsLike, key: string): string | undefined {
   if (sp instanceof URLSearchParams) return sp.get(key) ?? undefined;
   const v = sp[key];
