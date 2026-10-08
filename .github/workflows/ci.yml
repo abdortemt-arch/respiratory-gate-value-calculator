@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit + parity tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # Builds without Supabase credentials on purpose: the app must build before it is configured.
+      - run: pnpm build
+
+  integration:
+    name: RLS + end-to-end against local Supabase
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start local Supabase (Docker)
+        run: pnpm db:start
+      - name: Database policy and audit tests
+        run: pnpm test:db
+      - name: Configure app for the local stack
+        run: pnpm db:env
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Start app
+        run: |
+          pnpm start > next.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/sign-in && break; sleep 1; done
+      - name: End-to-end tests
+        run: pnpm test:e2e
+      - if: failure()
+        run: tail -n 200 next.log
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+      - if: always()
+        run: pnpm exec supabase stop --no-backup

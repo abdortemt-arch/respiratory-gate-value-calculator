@@ -4,6 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 /** Routes reachable without a session. Everything else requires sign-in. */
 const PUBLIC_PATHS = ["/sign-in", "/forgot-password", "/auth/confirm", "/setup"];
 
+/** Dynamic key: never inlined at build time, so runtime env vars always apply. */
+const readEnv = (name: string): string | undefined => process.env[name] || undefined;
+
 const isPublic = (pathname: string) => PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 /**
@@ -13,8 +16,8 @@ const isPublic = (pathname: string) => PUBLIC_PATHS.some((p) => pathname === p |
  */
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const key = readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") ?? readEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
 
   if (!url || !key) {
     return pathname === "/setup" ? NextResponse.next() : NextResponse.redirect(new URL("/setup", request.url));

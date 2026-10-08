@@ -45,7 +45,7 @@ export function RevenueView() {
             <CardTitle>Other revenue streams</CardTitle>
             <CardDescription>Hospital inputs — left as “Scenario pending” until volume and price are entered.</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="relative overflow-x-auto">
             <table className="w-full min-w-[30rem] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-muted">

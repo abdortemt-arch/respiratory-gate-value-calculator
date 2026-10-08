@@ -296,12 +296,11 @@ flowchart LR
 
 ## 8. Domain mapping (planned `src/domain/calculations/`)
 
-Each output is a `Quantity`, never a bare number. The four variants are listed below; full design in `docs/mvp-architecture.md` §5.
+Each output is a `Quantity`, never a bare number. The three variants are listed below (invalid values are rejected at input time, so the engine never sees them); full design in `docs/mvp-architecture.md` §5.
 
 - `calculated` — a value and its basis.
 - `partial` — a value whose workbook formula silently excluded blank components; it lists the missing inputs.
 - `missing` — no value; carries the workbook label and the required inputs.
-- `invalid` — validation failed.
 
 | Workbook output | Module / function | Missing label (verbatim) |
 |---|---|---|

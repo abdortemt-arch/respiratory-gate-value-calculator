@@ -45,7 +45,7 @@ export function BridgeView() {
           <CardTitle>Bridge steps</CardTitle>
           <CardDescription>The same figures as a table, in the workbook&apos;s order.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="relative overflow-x-auto">
           <table className="w-full min-w-[38rem] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">

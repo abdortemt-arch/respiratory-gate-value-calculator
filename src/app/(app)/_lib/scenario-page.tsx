@@ -16,11 +16,14 @@ export async function ScenarioPage({
   searchParams,
   title,
   description,
+  printHeader = true,
   children,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
   title: string;
   description?: ReactNode;
+  /** The printable report carries its own header. */
+  printHeader?: boolean;
   children: ReactNode;
 }) {
   const user = await requireUser();
@@ -30,7 +33,7 @@ export async function ScenarioPage({
 
   return (
     <ScenarioProvider values={ws.values} texts={ws.texts} scenarios={ws.scenarios} initialSettings={settings} initialBaseId={base?.id ?? null}>
-      <PageHeader title={title} description={description} />
+      <PageHeader title={title} description={description} className={printHeader ? undefined : "no-print"} />
       <ScenarioBar canSave={canSave} saveAction={canSave ? saveScenario : undefined} />
       {children}
     </ScenarioProvider>

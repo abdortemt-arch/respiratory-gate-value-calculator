@@ -1,6 +1,6 @@
 # MVP Architecture — Respiratory Gate Hospital Platform
 
-Status: **Step 1 deliverable**. Proposed architecture for Phase 1. It is built on the verified workbook analysis in `docs/excel-formula-map.md`; the data model is in `docs/database-schema.md`.
+Status: **implemented (Phase 1 MVP).** Written as the Step 1 proposal and updated where the build changed it. It is built on the verified workbook analysis in `docs/excel-formula-map.md`; the data model is in `docs/database-schema.md`.
 
 ## 1. Goal and constraints
 
@@ -22,14 +22,14 @@ Out of scope for Phase 1: patient portal, physician portal, patient records, pre
 |---|---|---|
 | App framework | **Next.js (App Router) + TypeScript**, strict mode | One codebase for UI and server actions; server components keep financial data off the client until it is authorised. |
 | Styling / components | **Tailwind CSS + shadcn/ui** (Radix primitives) | Accessible primitives; components live in the repo and are themed with brand tokens. |
-| Charts | **Recharts** | Lightweight; enough for the scenario matrix, lever bars and the value-bridge waterfall. |
+| Charts | **Plain HTML/CSS** (no chart library) | The matrix, lever bars and horizontal value-bridge waterfall are simple enough to build accessibly by hand; nothing extra to download, and they reflow to phone width. Colours validated for contrast and colour-vision deficiency. |
 | Database / auth | **Supabase**: Postgres, Auth, row-level security | Auth, RLS and SQL triggers for audit with no backend to run. |
-| Validation | **Zod** schemas generated from the input catalog | One definition validates the form, the server action and the engine input. |
+| Validation | **Catalog-driven parsers** in `src/domain/calculations/validation.ts` | One definition validates the form, the Server Action and the engine input; database constraints repeat the critical rules. |
 | Tests | **Vitest** (domain and unit), **Playwright** (one end-to-end smoke path) | Fast parity tests on every push. |
 | Hosting | **Vercel** (preview per PR plus production) | No-ops deploys; env vars managed per environment. |
 | CI | GitHub Actions: lint, typecheck, unit/parity tests, build | Parity tests block merges. |
 
-Package versions are pinned to the current stable releases when the project is scaffolded (Step 2).
+Versions: Next.js 16.4 (App Router, Turbopack, `cacheComponents` off because every page is per-user and live), React 19, Tailwind 4, `@supabase/ssr`, Vitest, Playwright. Region: Supabase **eu-central-1 (Frankfurt)** — Supabase has no Middle East or Africa region — with Vercel functions in **fra1** next to it.
 
 ## 3. System context
 
@@ -61,14 +61,15 @@ flowchart LR
 ├─ tests/fixtures/               workbook-parity.json (generated)
 ├─ supabase/
 │  ├─ migrations/                SQL migrations (schema, RLS, triggers)
-│  └─ seed.sql                   organisation + catalog rows, values NULL
+│  ├─ tests/                     RLS / audit tests through the real Auth + Data API
+│  └─ seed.sql                   intentionally empty (reference data is a migration)
 ├─ public/brand/                 web-optimised, trimmed/transparent logos
 └─ src/
    ├─ domain/                    ◀ pure TypeScript; imports nothing outside domain/
    │  ├─ inputs/catalog.ts       46 hospital inputs + RG assumptions: key, cell, group, unit, owner, note, validation
-   │  ├─ inputs/schema.ts        Zod schemas derived from the catalog
+   │  ├─ inputs/display.ts       status labels, edit/display formatting
    │  ├─ calculations/
-   │  │  ├─ quantity.ts          Quantity type + helpers (calculated / partial / missing / invalid)
+   │  │  ├─ quantity.ts          Quantity type + helpers (calculated / partial / missing)
    │  │  ├─ revenue.ts           occupancy × price matrix, ICU package, other streams, billing leakage
    │  │  ├─ savings.ts           lever baselines, sensitivities, totals
    │  │  ├─ operatingCost.ts     total RT operating cost, contribution margin
@@ -86,8 +87,10 @@ flowchart LR
    └─ components/
       ├─ ui/                     shadcn primitives
       ├─ metrics/                MetricCard (value + basis + status), StatusBadge, CompletenessMeter
-      ├─ charts/                 ScenarioMatrix, LeverBars, ValueBridgeWaterfall
-      └─ layout/                 AppShell, NavSidebar, ScenarioBar
+      ├─ charts/                 RevenueMatrix, LeverBars, ValueBridgeChart
+      ├─ dashboards/             Overview, Revenue, Savings, Bridge, Report views
+      ├─ scenario/               ScenarioProvider (live recalculation), ScenarioBar
+      └─ layout/                 AppShell, navigation
 ```
 
 **Boundary rules**, enforced with ESLint `no-restricted-imports`:
@@ -105,8 +108,7 @@ flowchart LR
 type Quantity =
   | { kind: 'calculated'; value: number; basis: string; inputs: InputKey[] }
   | { kind: 'partial';    value: number; basis: string; inputs: InputKey[]; missing: InputKey[] }
-  | { kind: 'missing';    label: StatusLabel; required: InputKey[] }
-  | { kind: 'invalid';    errors: ValidationIssue[] };
+  | { kind: 'missing';    label: StatusLabel; required: InputKey[] };
 ```
 
 - `calculated`: the workbook computes the same number with all components present.
@@ -156,7 +158,7 @@ sequenceDiagram
   N-->>B: HTML + serialisable inputs/result
   B->>B: change selector → calculateModel() locally (instant)
   B->>N: server action saveInput(key, value)
-  N->>N: requireRole(admin|manager), Zod validate
+  N->>N: authorize(permission), validate with the catalog
   N->>D: update hospital_inputs (user JWT)
   D->>D: trigger writes audit_log (old → new, auth.uid())
   N-->>B: revalidatePath → fresh numbers everywhere
@@ -180,11 +182,11 @@ sequenceDiagram
 
 Three layers of enforcement:
 
-1. **Middleware** redirects unauthenticated users to `/sign-in`.
+1. **Proxy** (`src/proxy.ts`, Next 16's renamed middleware) refreshes the session and redirects signed-out users to `/sign-in`.
 2. Every server action calls `requireRole()`.
 3. **RLS** in Postgres is the last line of defence; the policies are in `docs/database-schema.md`.
 
-`CLAUDE.md` names Admin as the audit-log role. Read-only audit access for Manager/Finance is a proposed extension, so they can see who changed the inputs they own; confirm before Step 6.
+`CLAUDE.md` names Admin as the audit-log role. Read-only audit access for Manager/Finance is implemented so they can see who changed the inputs they own; it is one policy line to remove if the hospital prefers Admin-only.
 
 Accounts are **invite-only**: self sign-up is disabled in Supabase Auth and admins invite users from Settings. Future roles exist only as enum values; no policy grants them anything.
 
@@ -227,7 +229,7 @@ Colours sampled from the logo files and the workbook:
 | `success` / `warning` / `danger` | green / amber / red | `CLAUDE.md` | Confirmed positive / incomplete / error only |
 
 - Typography: a neutral sans with **tabular numerals** for every money figure (e.g. Inter or IBM Plex Sans). Large, confident headline numbers on metric cards.
-- **Logo assets need preparation.** All four PNGs have opaque backgrounds: white for the colour logos, `#1B1E23` for the monochrome one. The colour files show slight JPEG-style colour noise, and the monochrome mark is only about 160 × 117 px within its 739 × 415 frame. Step 2 will generate trimmed, transparent web versions into `public/brand/`, with originals kept in `brand/`. **Request vector (SVG) originals from the brand owner.**
+- **Logo assets.** All four originals have opaque backgrounds and the monochrome mark is only about 160 × 117 px. `scripts/brand/prepare_logos.py` generates trimmed, transparent web versions in `public/brand/` and the app icons; originals stay in `brand/`. **Request vector (SVG) originals from the brand owner.**
 - Usage: the colour square logo in the sidebar and on sign-in (primary identity). The monochrome mark is only for dark surfaces, a subtle print watermark, or compact secondary branding.
 - Internationalisation: English first. Strings are centralised and Tailwind uses logical properties (`ms-`, `pe-`), so Arabic/RTL can be added without a rewrite.
 
@@ -237,7 +239,7 @@ Colours sampled from the logo files and the workbook:
 - **Secrets** come only from environment variables. `.env.example` documents `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` (server only). Nothing secret is committed.
 - **RLS on every table**, deny by default; the audit log is append-only and written only by triggers.
 - **Transport and storage**: HTTPS everywhere (Vercel); Supabase encrypts at rest. Backup and point-in-time-recovery availability depends on the Supabase plan; confirm before go-live.
-- **Hosting region / data residency is an open decision.** Phase 1 holds no PHI, but user accounts (names, emails) are personal data under Egypt's Personal Data Protection Law (Law No. 151 of 2020). Hospital IT and legal should approve the Supabase and Vercel regions before production data is entered.
+- **Hosting region / data residency.** Supabase eu-central-1 (Frankfurt) and Vercel fra1 — Supabase offers no Middle East or Africa region. Phase 1 holds no PHI, but user accounts (names, emails) are personal data under Egypt's Personal Data Protection Law (Law No. 151 of 2020); hospital IT and legal should confirm the region before production data is entered.
 - **Before any PHI** is introduced, the `CLAUDE.md` gate applies: hosting and residency, encryption, audit, backup and retention, access policies, local regulation, and hospital legal/IT sign-off.
 
 ## 12. Testing and quality gates
@@ -253,7 +255,7 @@ Colours sampled from the logo files and the workbook:
 
 ## 13. Environments and deployment
 
-- **Local:** `supabase start` (Docker), `pnpm dev`, seeded organisation and catalog with all values `NULL`.
+- **Local:** `pnpm db:start` (Supabase in Docker, migrations applied), `pnpm db:env`, `pnpm user:create`, `pnpm dev`. The organisation and catalog rows come from the reference-data migration with all hospital values `NULL`.
 - **Preview:** a Vercel preview per pull request against a non-production Supabase project.
 - **Production:** a Vercel production deployment plus a production Supabase project. Migrations are applied through the Supabase CLI in CI or manually by an admin.
 - Seed data never contains invented hospital values. The only seeded number is ICU beds = 50, sourced from the hospital's public website, plus the workbook's RG assumption defaults.
@@ -263,12 +265,13 @@ Colours sampled from the logo files and the workbook:
 | Milestone | Scope | Target |
 |---|---|---|
 | ✅ Step 1 | Workbook analysis, parity fixtures, architecture, schema | done |
-| Step 2 | Scaffold Next.js/TS/Tailwind/shadcn, app shell, navigation, Supabase auth wiring, brand tokens, logo prep | week 1 |
-| Step 3 | Domain engine + parity and unit tests green | week 1 |
-| Step 4 | Inputs UI with validation and completeness | week 2 |
-| Step 5 | Overview, Revenue, Savings, Value Bridge connected to the engine; charts | week 2 |
-| Step 6 | Supabase schema, RLS, audit triggers, roles, user invites, saved scenarios | week 3 |
-| Step 7 | Executive report and print view, responsive polish, empty/loading/error states, Playwright smoke, QA | week 3–4 |
+| ✅ Step 2 | Next.js 16 / TypeScript / Tailwind scaffold, app shell, navigation, Supabase auth, brand tokens, logo prep | done |
+| ✅ Step 3 | Domain engine + parity and unit tests green | done |
+| ✅ Step 4 | Inputs UI with validation and completeness | done |
+| ✅ Step 5 | Overview, Revenue, Savings, Value Bridge connected to the engine; charts | done |
+| ✅ Step 6 | Supabase schema, RLS, audit triggers, roles, user management, saved/approved scenarios | done |
+| ✅ Step 7 | Executive report and print view, responsive layout, Playwright end-to-end suite, CI | done |
+| Next | Production Supabase + Vercel setup, hospital data entry, Phase 1.1 Excel export | — |
 
 Steps 2 and 3 can run in parallel because the engine has no UI dependency.
 
@@ -279,7 +282,7 @@ Steps 2 and 3 can run in parallel because the engine has no UI dependency.
 | Overlapping levers overstate cost avoidance (Rule 4) | Show levers individually, label the total "undeduplicated", resolve Q2 with Finance |
 | Partial operating cost makes the net value look like profit (F4) | `partial` status, "Provisional" badge, report wording; Finance enters 0 for lines that do not apply |
 | Package price and 100% uptake are commercial assumptions (Rule 2, F14) | Basis text and guardrail copy on every revenue figure; Q1 |
-| Hosting region / PDPL compliance | Decide with hospital IT and legal before production data |
+| Hosting region / PDPL compliance | Frankfurt chosen (no MENA region on Supabase); confirm with hospital IT and legal before production data |
 | LibreOffice vs Excel recalculation differences | Functions used are standard; Finance spot-checks one populated scenario in Excel |
 | Low-resolution / raster-only logo files | Interim trimmed PNGs; request SVG originals |
 | Scope creep toward portals | Phase 1 boundary in `CLAUDE.md`; reserved roles only |

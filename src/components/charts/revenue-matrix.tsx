@@ -47,7 +47,7 @@ export function RevenueMatrix({
         <Segmented label="Period" value={period} onChange={setPeriod} options={PERIODS} />
         <p className="text-xs text-muted">{unit}</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full min-w-[19rem] border-separate border-spacing-[3px] text-sm">
           <caption className="sr-only">Gross ICU package potential by occupancy and package price, {unit}</caption>
           <thead>

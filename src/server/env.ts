@@ -9,9 +9,21 @@ export interface SupabasePublicEnv {
   readonly anonKey: string;
 }
 
+/**
+ * Read by dynamic key so the build never inlines NEXT_PUBLIC_* values: the
+ * runtime environment (Vercel, .env.local) is always what counts.
+ */
+export function readEnv(...names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value) return value;
+  }
+  return null;
+}
+
 export function getSupabasePublicEnv(): SupabasePublicEnv | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const url = readEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const anonKey = readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   return url && anonKey ? { url, anonKey } : null;
 }
 
@@ -27,7 +39,7 @@ export function requireSupabasePublicEnv(): SupabasePublicEnv {
 
 /** Server-only admin key. Needed only for creating users (Settings → Users). */
 export function getServiceRoleKey(): string | null {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY ?? null;
+  return readEnv("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY");
 }
 
 export class ConfigurationError extends Error {

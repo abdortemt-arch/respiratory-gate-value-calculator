@@ -7,20 +7,12 @@
  * (or the environment). Prints a one-time temporary password; the user must
  * replace it at first sign-in. Nothing is written to disk.
  */
-import { randomBytes } from "node:crypto";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
+import { temporaryPassword } from "../src/server/auth/temporary-password";
 
 const ROLES = ["admin", "manager", "viewer"] as const;
 type Role = (typeof ROLES)[number];
-
-export function temporaryPassword(): string {
-  // 18 chars from a 54-symbol alphabet (~103 bits), always with letters and digits.
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const bytes = randomBytes(18);
-  const body = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
-  return `${body.slice(0, 6)}-${body.slice(6, 12)}-${body.slice(12)}7a`;
-}
 
 async function main() {
   const { values } = parseArgs({

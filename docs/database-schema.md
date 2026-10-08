@@ -1,6 +1,6 @@
 # Database Schema — Phase 1 (Supabase Postgres)
 
-Status: **Step 1 deliverable — design draft.** The SQL below becomes `supabase/migrations/0001_init.sql` in Step 6. It implements the minimum data model from `CLAUDE.md`, with a few additions, each justified below.
+Status: **implemented.** The source of truth is `supabase/migrations/` (`20261008000000_init.sql` for schema, RLS and triggers; `20261008000100_reference_data.sql` for reference data). This document explains the design. It implements the minimum data model from `CLAUDE.md`, with a few additions, each justified below. Behaviour is verified by `supabase/tests/rls.test.ts` through the real Supabase Auth + Data API.
 
 Design rules:
 
@@ -22,7 +22,7 @@ erDiagram
   profiles }o--|| auth_users : "user_id"
   hospital_inputs }o--o| auth_users : "updated_by"
   scenario_assumptions }o--o| auth_users : "created_by / approved_by"
-  audit_log }o--o| auth_users : "changed_by"
+  audit_log }o--o| auth_users : "changed_by (no FK)"
 ```
 
 ## 2. Enums
@@ -131,223 +131,68 @@ Append-only change history. It is written **only** by database triggers, so no a
 | entity_id | uuid | row id |
 | field_name | text | the **input key** for `hospital_input` (`oxygen_spend`; `oxygen_consumption.text` for `text_value`); the column name for the other entities |
 | old_value / new_value | text | previous / new value (`NULL` = blank) |
-| changed_by | uuid | `auth.uid()`, falling back to the row's `updated_by` |
+| changed_by | uuid | `auth.uid()` of the person who made the change (`NULL` for system changes). **No foreign key**, so history survives removal of an account |
+| actor_name | text | the person's name captured at write time (`System` for migrations or service-role changes) |
 | changed_at | timestamptz | default `now()` |
 | action | text | `insert`, `update` or `delete` |
 
-**Addition vs `CLAUDE.md`:** `action`. It distinguishes scenario creation and deletion from edits.
+`entity_type` also accepts `organization` (organisation renames).
 
-## 4. Draft migration SQL
+**Additions vs `CLAUDE.md`:** `action` (distinguishes creation and deletion from edits) and `actor_name` (keeps the audit readable after a user account is removed).
 
-```sql
--- 0001_init.sql (draft)
-create extension if not exists pgcrypto;
+## 4. Implementation notes (see the migration for exact SQL)
 
-create type app_role as enum ('admin','manager','viewer','referring_physician','patient');
-create type input_source_type as enum ('hospital_data','verified_public','rg_assumption');
-create type savings_level as enum ('low','mid','high');
-create type scenario_status as enum ('draft','approved','archived');
+### Role helpers
 
-create table organizations (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  created_at timestamptz not null default now()
-);
+Policies call two `SECURITY DEFINER` functions in a **`private` schema**, which the Data API does not expose:
 
-create table profiles (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null unique references auth.users(id),
-  organization_id uuid not null references organizations(id),
-  full_name text not null,
-  role app_role not null default 'viewer',
-  active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+- `private.current_org_id()` returns the caller's organisation (active profiles only).
+- `private.has_role(variadic app_role[])` checks the caller's role (active profiles only).
 
-create table hospital_inputs (
-  id uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references organizations(id),
-  key text not null,
-  category text not null check (category in (
-    'icu_activity','unit_costs','annual_spend','usage','equipment','billing',
-    'other_revenue','operating_cost','model_assumptions')),
-  label text not null,
-  unit text not null,
-  numeric_value numeric check (numeric_value is null or numeric_value >= 0),
-  text_value text,
-  data_owner text,
-  note text,
-  source_type input_source_type not null,
-  updated_by uuid references auth.users(id),
-  updated_at timestamptz not null default now(),
-  unique (organization_id, key),
-  check (unit <> '%' or numeric_value is null or numeric_value <= 1)
-);
+Policies wrap them as `(select private.has_role(...))` so Postgres evaluates them once per statement. Deactivating a profile (`active = false`) therefore removes all access immediately.
 
-create table scenario_assumptions (
-  id uuid primary key default gen_random_uuid(),
-  organization_id uuid not null references organizations(id),
-  scenario_name text not null,
-  occupancy_rate numeric(6,5) not null check (occupancy_rate > 0 and occupancy_rate <= 1),
-  package_price numeric(12,2) not null check (package_price > 0),
-  savings_level savings_level not null default 'mid',
-  low_savings_pct  numeric(6,5) not null default 0.05 check (low_savings_pct  between 0 and 1),
-  mid_savings_pct  numeric(6,5) not null default 0.10 check (mid_savings_pct  between 0 and 1),
-  high_savings_pct numeric(6,5) not null default 0.15 check (high_savings_pct between 0 and 1),
-  is_default boolean not null default false,
-  status scenario_status not null default 'draft',
-  approved_by uuid references auth.users(id),
-  approved_at timestamptz,
-  approved_snapshot jsonb,
-  created_by uuid references auth.users(id) default auth.uid(),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (organization_id, scenario_name)
-);
-create unique index scenario_assumptions_one_default
-  on scenario_assumptions (organization_id) where is_default;
+### Privileges and policies
 
-create table audit_log (
-  id bigint generated always as identity primary key,
-  organization_id uuid not null references organizations(id),
-  entity_type text not null check (entity_type in ('hospital_input','scenario_assumption','profile')),
-  entity_id uuid not null,
-  field_name text not null,
-  old_value text,
-  new_value text,
-  changed_by uuid references auth.users(id),
-  changed_at timestamptz not null default now(),
-  action text not null default 'update' check (action in ('insert','update','delete'))
-);
-create index audit_log_org_time on audit_log (organization_id, changed_at desc);
-create index audit_log_entity on audit_log (entity_type, entity_id, changed_at desc);
-```
+| Table | Read | Write |
+|---|---|---|
+| `organizations` | staff of the organisation | Admin: `name` only |
+| `profiles` | own row (any role, so the app can show "no access"); staff see their organisation | Admin: insert; update `full_name`, `role`, `active` |
+| `hospital_inputs` | staff | **values only** (`numeric_value`, `text_value` column grants). Admin: any row; Manager: `hospital_data` and `verified_public` rows, never `rg_assumption` |
+| `scenario_assumptions` | staff | Manager: insert and edit own drafts (never the default, never approve). Admin: edit, approve, archive, delete non-default |
+| `audit_log` | Admin and Manager | nobody — triggers only |
 
-### Role helpers (used by every policy)
+`anon` has no privileges on any table. The reserved `referring_physician` and `patient` roles match no policy except reading their own profile.
 
-```sql
-create function app_current_org() returns uuid
-language sql stable security definer set search_path = public as $$
-  select organization_id from profiles where user_id = auth.uid() and active
-$$;
-
-create function app_has_role(variadic roles app_role[]) returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from profiles
-    where user_id = auth.uid() and active and role = any(roles)
-  )
-$$;
-```
-
-(`current_role` is a reserved SQL keyword, hence the `app_` prefix.)
-
-### Row-level security
-
-```sql
-alter table organizations        enable row level security;
-alter table profiles             enable row level security;
-alter table hospital_inputs      enable row level security;
-alter table scenario_assumptions enable row level security;
-alter table audit_log            enable row level security;
-
--- Staff = admin, manager, viewer. Reserved roles match no policy.
-create policy org_read on organizations for select
-  using (id = app_current_org() and app_has_role('admin','manager','viewer'));
-create policy org_admin_update on organizations for update
-  using (id = app_current_org() and app_has_role('admin'));
-
-create policy profiles_read on profiles for select
-  using (organization_id = app_current_org() and app_has_role('admin','manager','viewer'));
-create policy profiles_admin_update on profiles for update
-  using (organization_id = app_current_org() and app_has_role('admin'))
-  with check (organization_id = app_current_org());
--- Inserts: server-side invite action only (service role), never from the browser.
-
-create policy inputs_read on hospital_inputs for select
-  using (organization_id = app_current_org() and app_has_role('admin','manager','viewer'));
-create policy inputs_update on hospital_inputs for update
-  using (organization_id = app_current_org() and (
-         app_has_role('admin')
-      or (app_has_role('manager') and source_type in ('hospital_data','verified_public'))))
-  with check (organization_id = app_current_org());
--- Only values are editable from the app; keys/metadata change through migrations/seed.
-revoke update on hospital_inputs from authenticated;
-grant  update (numeric_value, text_value) on hospital_inputs to authenticated;
-
-create policy scenarios_read on scenario_assumptions for select
-  using (organization_id = app_current_org() and app_has_role('admin','manager','viewer'));
-create policy scenarios_insert on scenario_assumptions for insert
-  with check (organization_id = app_current_org() and app_has_role('admin','manager')
-              and status = 'draft' and not is_default);
-create policy scenarios_update on scenario_assumptions for update
-  using (organization_id = app_current_org() and (
-         app_has_role('admin')
-      or (app_has_role('manager') and status = 'draft' and not is_default)))
-  with check (organization_id = app_current_org() and (
-         app_has_role('admin')
-      or (status = 'draft' and not is_default)));
-create policy scenarios_admin_delete on scenario_assumptions for delete
-  using (organization_id = app_current_org() and app_has_role('admin'));
-
-create policy audit_read on audit_log for select
-  using (organization_id = app_current_org() and app_has_role('admin','manager'));
-revoke insert, update, delete on audit_log from authenticated, anon;
-```
-
-`CLAUDE.md` names Admin as the audit-log role. Manager read access (`audit_read`) is a proposed extension so Finance can see who changed the inputs they own; confirm it before Step 6.
+`CLAUDE.md` names Admin as the audit-log role. Manager read access is implemented as proposed, so Finance can see who changed the inputs they own; remove `'manager'` from `audit_log_select` if the hospital prefers Admin-only.
 
 ### Triggers
 
-```sql
--- Stamp who/when on every input change.
-create function stamp_hospital_input() returns trigger
-language plpgsql as $$
-begin
-  new.updated_by := coalesce(auth.uid(), new.updated_by);
-  new.updated_at := now();
-  return new;
-end $$;
-create trigger hospital_inputs_stamp before update on hospital_inputs
-  for each row execute function stamp_hospital_input();
+| Trigger | Behaviour |
+|---|---|
+| `hospital_inputs_stamp` (before update) | Sets `updated_by = auth.uid()` and `updated_at` when a value changes |
+| `hospital_inputs_audit` (after update) | One audit row per changed value; `field_name` is the input key (`<key>.text` for the text qualifier) |
+| `scenario_assumptions_rules` (before insert/update) | New rows are drafts. Approval stamps `approved_by` / `approved_at`. **Changing an approved scenario's numbers returns it to draft** and clears the snapshot. Leaving `approved` clears approval fields |
+| `scenario_assumptions_audit` (after insert/update/delete) | Creation, deletion and one row per changed column (jsonb diff) |
+| `profiles_keep_one_admin` (before update) | Refuses to demote or deactivate the **last active Admin** |
+| `profiles_audit`, `organizations_audit` | Role, access, name changes |
 
--- Audit input value changes, field_name = input key.
-create function audit_hospital_input() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  if new.numeric_value is distinct from old.numeric_value then
-    insert into audit_log (organization_id, entity_type, entity_id, field_name,
-                           old_value, new_value, changed_by, action)
-    values (new.organization_id, 'hospital_input', new.id, new.key,
-            old.numeric_value::text, new.numeric_value::text, new.updated_by, 'update');
-  end if;
-  if new.text_value is distinct from old.text_value then
-    insert into audit_log (organization_id, entity_type, entity_id, field_name,
-                           old_value, new_value, changed_by, action)
-    values (new.organization_id, 'hospital_input', new.id, new.key || '.text',
-            old.text_value, new.text_value, new.updated_by, 'update');
-  end if;
-  return new;
-end $$;
-create trigger hospital_inputs_audit after update on hospital_inputs
-  for each row execute function audit_hospital_input();
-```
+Database constraints also reject negative values and percentages above 100% (`unit = '%'` must be ≤ 1), independent of the app's validation.
 
-- **`scenario_assumptions`**:
-  - A `BEFORE UPDATE` trigger sets `updated_at`. When `status` changes to `approved`, it requires `app_has_role('admin')` and sets `approved_by = auth.uid()` and `approved_at = now()`.
-  - An `AFTER INSERT/UPDATE/DELETE` trigger writes one `audit_log` row per changed column, using a generic `jsonb` diff of `to_jsonb(old)` against `to_jsonb(new)`. It excludes `updated_at` and `approved_snapshot`; the snapshot is recorded as `approved_snapshot` changed, without the payload.
-- **`profiles`**: an `AFTER UPDATE` trigger audits changes to `role`, `active` and `full_name`.
+### RPC
 
-## 5. Seed data
+`public.set_default_scenario(scenario_id)` (security invoker, Admin only) switches the organisation's default scenario in one transaction; a partial unique index guarantees at most one default.
 
-`supabase/seed.sql` is **generated from the TypeScript catalog** (`pnpm db:seed`), so labels, units and keys cannot drift from the engine. A test compares the generated SQL with the catalog. The seed contains:
+## 5. Reference data
 
-1. the organisation `Elite Hospital`;
-2. 55 `hospital_inputs` rows, every hospital value `NULL` except `icu_beds = 50` (`verified_public`), and the 9 RG assumption defaults;
-3. the `Workbook default` scenario.
+`supabase/migrations/20261008000100_reference_data.sql` is **generated from the TypeScript catalog** (`pnpm db:reference-data`), and `supabase/tests/reference-data.test.ts` fails if they drift. Because it is a migration, `supabase db push` provisions production as well as local databases. It creates:
 
-There are no users in the seed. The first admin is created with the Supabase CLI or dashboard plus a one-off SQL insert into `profiles`; the README will document this in Step 6. **No synthetic test values from `tests/fixtures/` are ever seeded.**
+1. the organisation `Elite Hospital` (fixed id `00000000-0000-4000-8000-000000000001`);
+2. 55 `hospital_inputs` rows, every hospital value `NULL` except `icu_beds = 50` (`verified_public`), plus the 9 RG assumption defaults;
+3. the `Workbook default` scenario (default, draft).
+
+Re-running it never overwrites values. Once deployed, catalog changes go in a **new** migration.
+
+`supabase/seed.sql` is intentionally empty: users with known passwords are never seeded. The first Admin is created with `pnpm user:create` (temporary password, must be changed at first sign-in) or via the Supabase dashboard; see the README. **No synthetic test values from `tests/fixtures/` are ever seeded.**
 
 ## 6. Application access patterns
 

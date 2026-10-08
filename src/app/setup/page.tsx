@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { getServiceRoleKey, getSupabasePublicEnv } from "@/server/env";
+import { getServiceRoleKey, getSupabasePublicEnv, readEnv } from "@/server/env";
 
 export const metadata: Metadata = { title: "Setup required" };
 export const dynamic = "force-dynamic";
@@ -12,10 +12,10 @@ export default function SetupPage() {
   const configured = getSupabasePublicEnv() !== null;
   if (configured) redirect("/sign-in");
   const vars = [
-    { name: "NEXT_PUBLIC_SUPABASE_URL", set: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) },
+    { name: "NEXT_PUBLIC_SUPABASE_URL", set: readEnv("NEXT_PUBLIC_SUPABASE_URL") !== null },
     {
       name: "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-      set: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY),
+      set: readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") !== null,
     },
     { name: "SUPABASE_SERVICE_ROLE_KEY", set: getServiceRoleKey() !== null },
   ];

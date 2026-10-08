@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/app/(auth)/sign-in/actions";
 import { can, ROLE_LABELS, type StaffRole } from "@/domain/access";
+import { cn } from "@/lib/cn";
 import type { CompletenessCount } from "@/domain/calculations/completeness";
 import { Button } from "@/components/ui/button";
 import { CompletenessBar } from "@/components/metrics/completeness";
@@ -59,7 +60,7 @@ export function AppShell({
 }) {
   const items = NAV_ITEMS.filter((i) => can(user.role, i.permission));
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_1fr]">
+    <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_1fr] print:block">
       <aside className="no-print sticky top-0 hidden h-dvh flex-col border-r border-line bg-card lg:flex">
         <Link href="/overview" className="flex items-center gap-3 px-5 pt-6 pb-5">
           <Image src="/brand/rg-mark-color.png" alt="" width={36} height={36} priority />
@@ -97,7 +98,7 @@ export function AppShell({
             />
           </Suspense>
         </header>
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:max-w-none print:p-0">{children}</main>
       </div>
     </div>
   );
@@ -107,13 +108,15 @@ export function PageHeader({
   title,
   description,
   actions,
+  className,
 }: {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className={cn("mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div className="min-w-0">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
         {description ? <div className="mt-1 max-w-3xl text-sm text-muted">{description}</div> : null}

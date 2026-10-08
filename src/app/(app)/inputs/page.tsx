@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { canEditInputSource } from "@/domain/access";
+import { can, canEditInputSource } from "@/domain/access";
 import { completeness } from "@/domain/calculations/completeness";
 import { plausibilityWarnings } from "@/domain/calculations/validation";
 import { definitionsInGroup, HOSPITAL_INPUT_GROUPS, INPUT_GROUPS, type InputKey } from "@/domain/inputs/catalog";
@@ -104,6 +104,7 @@ export default async function InputsPage() {
                       updatedAt={meta?.updatedAt ?? null}
                       updatedByName={meta?.updatedByName ?? null}
                       warning={warnings.get(key)}
+                      auditHref={can(user.role, "view_audit") ? `/audit?key=${key}` : undefined}
                       save={updateInput}
                     />
                   );

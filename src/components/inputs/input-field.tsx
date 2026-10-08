@@ -18,12 +18,14 @@ export interface InputFieldProps {
   readonly updatedAt: string | null;
   readonly updatedByName: string | null;
   readonly warning?: string;
+  /** Link to this input's change history (only for roles that may view the audit log). */
+  readonly auditHref?: string;
   readonly save: (key: string, value: string, text?: string | null) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export function InputField({ inputKey, value, text, editable, updatedAt, updatedByName, warning, save }: InputFieldProps) {
+export function InputField({ inputKey, value, text, editable, updatedAt, updatedByName, warning, auditHref, save }: InputFieldProps) {
   const def = getInputDefinition(inputKey);
   const initial = toEditableText(def, value);
   const [draft, setDraft] = useState(initial);
@@ -73,6 +75,14 @@ export function InputField({ inputKey, value, text, editable, updatedAt, updated
         {updatedAt ? (
           <p className="text-xs text-muted">
             Last changed {dateFormat.format(new Date(updatedAt))} by {updatedByName}
+            {auditHref ? (
+              <>
+                {" · "}
+                <a href={auditHref} className="text-brand-blue-700 hover:underline">
+                  History
+                </a>
+              </>
+            ) : null}
           </p>
         ) : null}
         {warning ? <p className="text-xs font-medium text-caution">{warning}</p> : null}

@@ -65,7 +65,7 @@ export function SavingsView() {
           <CardTitle>Low / Mid / High scenarios</CardTitle>
           <CardDescription>EGP per year. The selected level is highlighted.</CardDescription>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="relative overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted">
