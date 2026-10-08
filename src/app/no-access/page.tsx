@@ -18,7 +18,7 @@ const MESSAGES = {
 export default async function NoAccessPage() {
   const session = await getSession();
   if (session.status === "signed_out") redirect("/sign-in");
-  if (session.status === "ok") redirect("/overview");
+  if (session.status === "ok") redirect("/hospitals");
   return (
     <main className="flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-md space-y-6">

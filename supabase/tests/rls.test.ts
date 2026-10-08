@@ -10,6 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { cleanupOrganization } from "./helpers";
 
 const url = process.env.TEST_SUPABASE_URL;
 const anonKey = process.env.TEST_SUPABASE_ANON_KEY;
@@ -20,6 +21,7 @@ type Role = "admin" | "manager" | "viewer" | "referring_physician";
 
 const run = randomUUID().slice(0, 8);
 const orgId = randomUUID();
+const hospitalId = randomUUID();
 const password = `Test-${randomUUID()}`;
 const users: Partial<Record<Role | "inactive", { id: string; client: SupabaseClient }>> = {};
 let service: SupabaseClient;
@@ -31,7 +33,7 @@ const client = (role: Role | "inactive") => {
 };
 
 async function inputId(key: string): Promise<string> {
-  const { data, error } = await service.from("hospital_inputs").select("id").eq("organization_id", orgId).eq("key", key).single();
+  const { data, error } = await service.from("hospital_inputs").select("id").eq("hospital_id", hospitalId).eq("key", key).single();
   if (error) throw error;
   return data.id;
 }
@@ -42,11 +44,15 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
 
     await service.from("organizations").insert({ id: orgId, name: `RLS test ${run}` }).throwOnError();
     await service
+      .from("hospitals")
+      .insert({ id: hospitalId, organization_id: orgId, name: `RLS hospital ${run}`, code: "RLS", workbook_model_enabled: true })
+      .throwOnError();
+    await service
       .from("hospital_inputs")
       .insert([
-        { organization_id: orgId, key: "oxygen_spend", category: "annual_spend", label: "Oxygen spend", unit: "EGP / yr", source_type: "hospital_data" },
-        { organization_id: orgId, key: "collection_rate", category: "billing", label: "Collection rate", unit: "%", source_type: "hospital_data" },
-        { organization_id: orgId, key: "days_per_year", category: "model_assumptions", label: "Days per year", unit: "days", numeric_value: 365, source_type: "rg_assumption" },
+        { organization_id: orgId, hospital_id: hospitalId, key: "oxygen_spend", category: "annual_spend", label: "Oxygen spend", unit: "EGP / yr", source_type: "hospital_data" },
+        { organization_id: orgId, hospital_id: hospitalId, key: "collection_rate", category: "billing", label: "Collection rate", unit: "%", source_type: "hospital_data" },
+        { organization_id: orgId, hospital_id: hospitalId, key: "days_per_year", category: "model_assumptions", label: "Days per year", unit: "days", numeric_value: 365, source_type: "rg_assumption" },
       ])
       .throwOnError();
 
@@ -64,6 +70,12 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
           active: role !== "inactive",
         })
         .throwOnError();
+      if (role === "manager" || role === "viewer" || role === "inactive") {
+        await service
+          .from("hospital_members")
+          .insert({ hospital_id: hospitalId, user_id: data.user.id, role: role === "viewer" ? "viewer" : "manager" })
+          .throwOnError();
+      }
       const c = createClient(url!, anonKey!, { auth: { persistSession: false, autoRefreshToken: false } });
       const signIn = await c.auth.signInWithPassword({ email, password });
       if (signIn.error) throw signIn.error;
@@ -73,13 +85,7 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
 
   afterAll(async () => {
     if (!service) return;
-    for (const u of Object.values(users)) if (u) await service.auth.admin.deleteUser(u.id);
-    // Scenarios first: deleting them writes audit rows.
-    await service.from("scenario_assumptions").delete().eq("organization_id", orgId);
-    await service.from("audit_log").delete().eq("organization_id", orgId);
-    await service.from("hospital_inputs").delete().eq("organization_id", orgId);
-    await service.from("profiles").delete().eq("organization_id", orgId);
-    await service.from("organizations").delete().eq("id", orgId);
+    await cleanupOrganization(service, orgId, Object.values(users).flatMap((u) => (u ? [u.id] : [])));
   });
 
   it("anonymous requests see nothing", async () => {
@@ -183,7 +189,7 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
     it("managers save drafts but cannot approve them", async () => {
       const created = await client("manager")
         .from("scenario_assumptions")
-        .insert({ organization_id: orgId, scenario_name: "Manager draft", occupancy_rate: 0.7, package_price: 900, savings_level: "low" })
+        .insert({ organization_id: orgId, hospital_id: hospitalId, scenario_name: "Manager draft", occupancy_rate: 0.7, package_price: 900, savings_level: "low" })
         .select("id, status, created_by")
         .single();
       expect(created.error).toBeNull();
@@ -216,7 +222,7 @@ describe.skipIf(!enabled)("Supabase RLS and audit", () => {
     it("set_default_scenario is admin-only and keeps a single default", async () => {
       const second = await client("admin")
         .from("scenario_assumptions")
-        .insert({ organization_id: orgId, scenario_name: "Board case", occupancy_rate: 0.8, package_price: 1000 })
+        .insert({ organization_id: orgId, hospital_id: hospitalId, scenario_name: "Board case", occupancy_rate: 0.8, package_price: 1000 })
         .select("id")
         .single();
 

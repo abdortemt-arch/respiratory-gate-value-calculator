@@ -45,6 +45,10 @@ export interface PriceVersion {
   readonly notes: string | null;
   readonly voided: boolean;
   readonly voidReason?: string | null;
+  readonly voidedAt?: string | null;
+  readonly voidedByName?: string | null;
+  /** Reason recorded when the version corrected a finalized or locked period. */
+  readonly changeReason?: string | null;
   readonly createdAt?: string;
   readonly createdByName?: string | null;
 }
@@ -75,6 +79,10 @@ export interface CostVersion {
   readonly notes: string | null;
   readonly voided: boolean;
   readonly voidReason?: string | null;
+  readonly voidedAt?: string | null;
+  readonly voidedByName?: string | null;
+  /** Reason recorded when the version corrected a finalized or locked period. */
+  readonly changeReason?: string | null;
   readonly createdAt?: string;
   readonly createdByName?: string | null;
 }

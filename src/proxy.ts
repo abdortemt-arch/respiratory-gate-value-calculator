@@ -55,7 +55,7 @@ export async function proxy(request: NextRequest) {
     return redirectTo(target);
   }
   if (signedIn && pathname === "/sign-in") {
-    return redirectTo(new URL("/overview", request.url));
+    return redirectTo(new URL("/hospitals", request.url));
   }
   return response;
 }

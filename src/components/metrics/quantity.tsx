@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { WorkbookLink } from "@/components/scenario/workbook-link";
 import type { ReactNode } from "react";
 import { getInputDefinition, type InputKey } from "@/domain/inputs/catalog";
 import { missingInputs, type Quantity } from "@/domain/calculations/quantity";
@@ -65,9 +65,9 @@ export function MissingInputs({
       {shown.map((k, i) => (
         <span key={k}>
           {i > 0 ? ", " : ""}
-          <Link href={`/inputs#${k}`} className="font-medium text-brand-blue-700 underline-offset-2 hover:underline">
+          <WorkbookLink to={`inputs#${k}`} className="font-medium text-brand-blue-700 underline-offset-2 hover:underline">
             {inputLabel(k)}
-          </Link>
+          </WorkbookLink>
         </span>
       ))}
       {rest > 0 ? ` and ${rest} more` : ""}

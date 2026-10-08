@@ -34,5 +34,5 @@ export async function setPassword(_prev: SetPasswordState, formData: FormData): 
     });
     await supabase.auth.refreshSession();
   }
-  redirect("/overview");
+  redirect("/hospitals");
 }

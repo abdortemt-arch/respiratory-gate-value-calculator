@@ -16,12 +16,15 @@ export interface ManagedUser {
   readonly active: boolean;
   readonly lastSignInAt: string | null;
   readonly isSelf: boolean;
+  /** Hospitals this user is an active member of (Admins see every hospital). */
+  readonly hospitals: readonly string[];
 }
 
 type Result = { ok: boolean; error?: string; temporaryPassword?: string };
 
 interface Props {
   readonly users: readonly ManagedUser[];
+  readonly hospitals: readonly { id: string; name: string }[];
   readonly createUser: (formData: FormData) => Promise<Result>;
   readonly updateUserRole: (profileId: string, role: string) => Promise<Result>;
   readonly setUserActive: (profileId: string, active: boolean) => Promise<Result>;
@@ -52,7 +55,7 @@ function OneTimePassword({ label, password }: { label: string; password: string 
   );
 }
 
-export function UserAdmin({ users, createUser, updateUserRole, setUserActive, resetUserPassword }: Props) {
+export function UserAdmin({ users, hospitals, createUser, updateUserRole, setUserActive, resetUserPassword }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ label: string; password: string } | null>(null);
@@ -112,6 +115,19 @@ export function UserAdmin({ users, createUser, updateUserRole, setUserActive, re
             <UserPlus /> Add user
           </Button>
         </div>
+        {hospitals.length ? (
+          <fieldset className="space-y-1.5 text-sm sm:col-span-2 lg:col-span-4">
+            <legend className="font-medium text-ink">Hospital access</legend>
+            <p className="text-xs text-muted">Managers and Viewers see only these hospitals. Admins see every hospital.</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-1">
+              {hospitals.map((h) => (
+                <label key={h.id} className="flex items-center gap-2">
+                  <input type="checkbox" name="hospitalIds" value={h.id} className="size-4 accent-brand-blue" /> {h.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
         <fieldset className="flex flex-wrap gap-x-5 gap-y-1 text-sm sm:col-span-2 lg:col-span-4">
           <legend className="sr-only">How to give access</legend>
           <label className="flex items-center gap-2">
@@ -128,12 +144,13 @@ export function UserAdmin({ users, createUser, updateUserRole, setUserActive, re
       {issued ? <OneTimePassword label={issued.label} password={issued.password} /> : null}
 
       <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[44rem] text-sm">
+        <table className="w-full min-w-[52rem] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs text-muted">
               <th scope="col" className="py-2 pr-3 font-medium">User</th>
               <th scope="col" className="py-2 pr-3 font-medium">Role</th>
               <th scope="col" className="py-2 pr-3 font-medium">Access</th>
+              <th scope="col" className="py-2 pr-3 font-medium">Hospitals</th>
               <th scope="col" className="py-2 pr-3 font-medium">Last sign-in</th>
               <th scope="col" className="py-2 font-medium">
                 <span className="sr-only">Actions</span>
@@ -169,6 +186,9 @@ export function UserAdmin({ users, createUser, updateUserRole, setUserActive, re
                 </td>
                 <td className="py-2.5 pr-3">
                   <Badge tone={u.active ? "positive" : "neutral"}>{u.active ? "Active" : "Deactivated"}</Badge>
+                </td>
+                <td className="py-2.5 pr-3 text-xs text-ink-soft">
+                  {u.role === "admin" ? "All hospitals" : u.hospitals.length ? u.hospitals.join(", ") : <span className="text-caution">None yet</span>}
                 </td>
                 <td className="py-2.5 pr-3 text-ink-soft">
                   {u.lastSignInAt ? dateFormat.format(new Date(u.lastSignInAt)) : "Never"}

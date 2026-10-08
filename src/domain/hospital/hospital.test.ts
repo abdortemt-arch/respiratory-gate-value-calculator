@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { aggregate } from "./aggregate";
 import { compareSummaries } from "./compare";
 import { quarterMonths, ytdMonths } from "./month";
+import { buildPortfolio, latestMonth, type HospitalData } from "./portfolio";
 import { calculatePeriod, type FinancialSummary } from "./period";
 import type { CostItemConfig, CostVersion, HospitalConfig, PeriodInput, PriceVersion } from "./types";
 import { explainVariance } from "./variance";
@@ -351,5 +352,74 @@ describe("comparisons", () => {
     expect(rows.find((r) => r.key === "revenue")).toMatchObject({ a: 150_000, b: 192_000, change: 42_000 });
     expect(rows.find((r) => r.key === "revenue")!.changePct).toBeCloseTo(0.28, 6);
     expect(rows.find((r) => r.key === "volume")).toMatchObject({ a: 100, b: 120 });
+  });
+});
+
+describe("portfolio", () => {
+  const hospitalB: HospitalConfig = {
+    ...hospitalA(),
+    id: "hosp-b",
+    name: "Hospital B",
+    code: "HB",
+    departments: [{ id: "b-icu", name: "ICU", category: "adult_icu", beds: 20, rtCoverage: true, active: true }],
+    services: [{ id: "b-niv", serviceId: NIV, name: "NIV", category: "ventilation", active: true, departmentIds: ["b-icu"] }],
+    priceVersions: [price("pb1", "b-niv", 2400, "2026-01")],
+    costItems: [
+      { id: "b-rt", name: "Respiratory therapist", category: "staffing", basis: "per_unit", unitLabel: "FTE", hospitalServiceId: null, departmentId: null, equipmentId: null, isRtStaff: true, active: true, endedFrom: null },
+    ],
+    costVersions: [
+      { id: "bv1", costItemId: "b-rt", amount: 20_000, effectiveFrom: "2026-01", notes: null, voided: false },
+      { id: "bv2", costItemId: "b-rt", amount: 22_000, effectiveFrom: "2026-02", notes: null, voided: false },
+    ],
+  };
+  const bPeriod = (month: string, volume: number): PeriodInput => ({
+    id: `b-${month}`,
+    month,
+    status: "draft",
+    activity: [{ hospitalServiceId: "b-niv", departmentId: "b-icu", quantity: volume }],
+    stats: [],
+    costEntries: [{ costItemId: "b-rt", quantity: 5 }],
+    savings: [],
+  });
+  const data: HospitalData[] = [
+    { config: hospitalA(), active: true, periods: [period("2026-01", 60, 40), period("2026-02", 100, 0)] },
+    { config: hospitalB, active: true, periods: [bPeriod("2026-01", 100), bPeriod("2026-02", 110)] },
+    { config: { ...hospitalA(), id: "hosp-c", name: "Hospital C", code: "HC" }, active: true, periods: [] },
+  ];
+
+  it("finds the latest month with data", () => {
+    expect(latestMonth(data)).toBe("2026-02");
+    expect(latestMonth([])).toBeNull();
+  });
+
+  it("totals the month across hospitals and flags hospitals without data", () => {
+    const p = buildPortfolio(data, "2026-02");
+    expect(p.hospitalsWithData).toBe(2);
+    expect(p.totals.revenue.value).toBe(180_000 + 264_000);
+    expect(p.totals.revenue.status).toBe("partial");
+    expect(p.totals.revenue.issues.map((i) => i.message)).toContain("1 hospital without data");
+    // Hospital A has no costs, so portfolio net only includes Hospital B and is partial.
+    expect(p.totals.net.value).toBe(264_000 - 110_000);
+    expect(p.totals.net.status).toBe("partial");
+    expect(p.ytd.revenue.value).toBe(150_000 + 180_000 + 240_000 + 264_000);
+  });
+
+  it("names the highest-value and fastest-growing hospitals", () => {
+    const p = buildPortfolio(data, "2026-02");
+    expect(p.highestValue?.name).toBe("Hospital B"); // only hospital with a net value
+    // A: 150,000 → 180,000 (+20%); B: 240,000 → 264,000 (+10%)
+    expect(p.highestGrowth?.name).toBe("Hospital A");
+    expect(p.highestGrowth?.revenueGrowth).toBeCloseTo(0.2);
+    expect(p.revenueChanges.map((r) => [r.name, r.revenueChange])).toEqual([
+      ["Hospital A", 30_000],
+      ["Hospital B", 24_000],
+    ]);
+  });
+
+  it("lists cost increases against the previous month", () => {
+    const p = buildPortfolio(data, "2026-02");
+    expect(p.costIncreases).toEqual([
+      { hospitalId: "hosp-b", hospitalName: "Hospital B", item: "Respiratory therapist", from: 100_000, to: 110_000, increase: 10_000 },
+    ]);
   });
 });

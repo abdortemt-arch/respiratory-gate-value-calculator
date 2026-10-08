@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { WorkbookLink } from "@/components/scenario/workbook-link";
 import { useState, useTransition } from "react";
 import { formatEgp, formatPercent } from "@/domain/format";
 import { SAVINGS_LEVEL_LABELS } from "@/domain/scenario";
@@ -56,9 +56,9 @@ export function ScenarioAdmin({
             {scenarios.map((s) => (
               <tr key={s.id}>
                 <td className="py-2.5 pr-3">
-                  <Link href={`/overview${scenarioQuery(s.settings, s)}`} className="font-medium text-ink hover:underline">
+                  <WorkbookLink to={scenarioQuery(s.settings, s)} className="font-medium text-ink hover:underline">
                     {s.name}
-                  </Link>
+                  </WorkbookLink>
                   {s.isDefault ? <Badge tone="blue" className="ml-2">Default</Badge> : null}
                   <span className="block text-xs text-muted">{s.createdByName ? `Saved by ${s.createdByName}` : "Workbook reference"}</span>
                 </td>

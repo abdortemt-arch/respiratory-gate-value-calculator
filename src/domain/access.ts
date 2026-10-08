@@ -27,7 +27,12 @@ export type Permission =
   | "export_reports"
   | "view_audit"
   | "manage_users"
-  | "manage_organization";
+  | "manage_organization"
+  | "manage_hospitals"
+  | "edit_hospital_config"
+  | "enter_period_data"
+  | "finalize_periods"
+  | "lock_periods";
 
 const MATRIX: Record<Permission, readonly AppRole[]> = {
   view_dashboards: ["admin", "manager", "viewer"],
@@ -39,6 +44,13 @@ const MATRIX: Record<Permission, readonly AppRole[]> = {
   view_audit: ["admin", "manager"],
   manage_users: ["admin"],
   manage_organization: ["admin"],
+  // Multi-hospital platform. For hospital-scoped actions the role is the user's
+  // role in that hospital (see hospitalRole), not only their organisation role.
+  manage_hospitals: ["admin"],
+  edit_hospital_config: ["admin", "manager"],
+  enter_period_data: ["admin", "manager"],
+  finalize_periods: ["admin", "manager"],
+  lock_periods: ["admin"],
 };
 
 export function can(role: AppRole, permission: Permission): boolean {
@@ -52,4 +64,18 @@ export function isStaffRole(role: AppRole): role is StaffRole {
 /** Which inputs a role may edit, by source type (matches policy hospital_inputs_update). */
 export function canEditInputSource(role: AppRole, source: "hospital_data" | "verified_public" | "rg_assumption"): boolean {
   return source === "rg_assumption" ? can(role, "edit_assumptions") : can(role, "edit_hospital_inputs");
+}
+
+/**
+ * A user's role in one hospital (mirrors private.hospital_role in the database):
+ * organisation Admins administer every hospital; other staff need an active
+ * membership, and a Viewer stays read-only whatever the membership says.
+ */
+export function hospitalRole(
+  orgRole: StaffRole,
+  membership: { readonly role: "manager" | "viewer"; readonly active: boolean } | null,
+): StaffRole | null {
+  if (orgRole === "admin") return "admin";
+  if (!membership?.active) return null;
+  return orgRole === "viewer" ? "viewer" : membership.role;
 }

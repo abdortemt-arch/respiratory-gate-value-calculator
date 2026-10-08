@@ -20,13 +20,18 @@ export interface InputFieldProps {
   readonly warning?: string;
   /** Link to this input's change history (only for roles that may view the audit log). */
   readonly auditHref?: string;
+  /** This hospital's metadata for the input; defaults to the workbook catalog. */
+  readonly meta?: { readonly owner: string | null; readonly note: string | null; readonly source: "hospital_data" | "verified_public" | "rg_assumption" };
   readonly save: (key: string, value: string, text?: string | null) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export function InputField({ inputKey, value, text, editable, updatedAt, updatedByName, warning, auditHref, save }: InputFieldProps) {
+export function InputField({ inputKey, value, text, editable, updatedAt, updatedByName, warning, auditHref, meta, save }: InputFieldProps) {
   const def = getInputDefinition(inputKey);
+  const source = meta?.source ?? def.source;
+  const owner = meta ? meta.owner : def.owner;
+  const note = meta ? meta.note : def.note;
   const initial = toEditableText(def, value);
   const [draft, setDraft] = useState(initial);
   const [textDraft, setTextDraft] = useState(text ?? "");
@@ -64,13 +69,14 @@ export function InputField({ inputKey, value, text, editable, updatedAt, updated
           {missing ? (
             <Badge tone={def.usage === "informational" ? "neutral" : "caution"}>{missingLabel(def)}</Badge>
           ) : null}
-          {def.source === "verified_public" ? <Badge tone="blue">Verified public source</Badge> : null}
-          {def.source === "rg_assumption" ? <Badge tone="orange">Respiratory Gate assumption</Badge> : null}
+          {source === "verified_public" ? <Badge tone="blue">Verified public source</Badge> : null}
+          {source === "rg_assumption" ? <Badge tone="orange">Respiratory Gate assumption</Badge> : null}
           {def.usage === "informational" ? <Badge tone="neutral">Informational — not used in calculations</Badge> : null}
         </div>
         <p className="text-xs text-muted">
-          <span className="font-medium text-ink-soft">{def.unit}</span> · Owner: {def.owner}
-          {def.note ? <> · {def.note}</> : null}
+          <span className="font-medium text-ink-soft">{def.unit}</span>
+          {owner ? <> · Owner: {owner}</> : null}
+          {note ? <> · {note}</> : null}
         </p>
         {updatedAt ? (
           <p className="text-xs text-muted">

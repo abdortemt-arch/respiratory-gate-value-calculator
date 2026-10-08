@@ -2,7 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 
 /** Only same-site relative paths are allowed as post-auth destinations. */
-export function safeNext(next: unknown, fallback = "/overview"): string {
+export function safeNext(next: unknown, fallback = "/hospitals"): string {
   if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
   return next;
 }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getInputDefinition, isInputKey } from "@/domain/inputs/catalog";
 import { parseInputText } from "@/domain/calculations/validation";
-import { authorize } from "@/server/auth/session";
+import { authorizeHospital } from "@/server/hospitals/access";
 import { createSupabaseServerClient } from "@/server/supabase/server";
 
 export interface UpdateInputResult {
@@ -17,10 +17,15 @@ export interface UpdateInputResult {
  * the engine uses; RLS and column grants enforce role limits again in the
  * database, and a trigger writes the audit entry.
  */
-export async function updateInput(key: string, rawValue: string, rawText?: string | null): Promise<UpdateInputResult> {
+export async function updateInput(
+  hospitalId: string,
+  key: string,
+  rawValue: string,
+  rawText?: string | null,
+): Promise<UpdateInputResult> {
   if (!isInputKey(key)) return { ok: false, error: "Unknown input." };
   const def = getInputDefinition(key);
-  const auth = await authorize(def.source === "rg_assumption" ? "edit_assumptions" : "edit_hospital_inputs");
+  const auth = await authorizeHospital(hospitalId, def.source === "rg_assumption" ? "edit_assumptions" : "edit_hospital_inputs");
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const parsed = parseInputText(def, rawValue);
@@ -37,7 +42,7 @@ export async function updateInput(key: string, rawValue: string, rawText?: strin
   const { data, error } = await supabase
     .from("hospital_inputs")
     .update(update)
-    .eq("organization_id", auth.user.organizationId)
+    .eq("hospital_id", auth.ctx.hospital.id)
     .eq("key", key)
     .select("id");
   if (error) {

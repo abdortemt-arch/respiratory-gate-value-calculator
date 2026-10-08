@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { WorkbookLink } from "@/components/scenario/workbook-link";
 import type { CompletenessCount } from "@/domain/calculations/completeness";
 import { ratio } from "@/domain/calculations/completeness";
 import { cn } from "@/lib/cn";
@@ -27,8 +27,8 @@ export function CompletenessBar({ count, className }: { count: CompletenessCount
 export function CompletenessPill({ count }: { count: CompletenessCount }) {
   const complete = count.entered === count.total;
   return (
-    <Link
-      href="/inputs"
+    <WorkbookLink
+      to="inputs"
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium",
         complete ? "border-positive/20 bg-positive-50 text-positive" : "border-caution-200 bg-caution-50 text-caution",
@@ -39,6 +39,6 @@ export function CompletenessPill({ count }: { count: CompletenessCount }) {
         {count.entered}/{count.total}
       </span>
       model inputs entered
-    </Link>
+    </WorkbookLink>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { WorkbookLink } from "@/components/scenario/workbook-link";
 import { ArrowRight } from "lucide-react";
 import { hasValue, missingInputs, type Quantity } from "@/domain/calculations/quantity";
 import { ratio } from "@/domain/calculations/completeness";
@@ -128,9 +128,9 @@ export function OverviewView() {
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle>Value bridge</CardTitle>
-              <Link href="/value-bridge" className="inline-flex items-center gap-1 text-sm font-medium text-brand-blue-700 hover:underline">
+              <WorkbookLink to="value-bridge" className="inline-flex items-center gap-1 text-sm font-medium text-brand-blue-700 hover:underline">
                 Details <ArrowRight className="size-4" aria-hidden />
-              </Link>
+              </WorkbookLink>
             </div>
             <CardDescription>EGP per year for the selected scenario. Steps without hospital data are excluded and listed.</CardDescription>
           </CardHeader>
@@ -166,9 +166,9 @@ export function OverviewView() {
                       {s.keys.slice(0, 3).map((k, i) => (
                         <span key={k}>
                           {i > 0 ? ", " : ""}
-                          <Link href={`/inputs#${k}`} className="text-brand-blue-700 hover:underline">
+                          <WorkbookLink to={`inputs#${k}`} className="text-brand-blue-700 hover:underline">
                             {inputLabel(k)}
-                          </Link>
+                          </WorkbookLink>
                         </span>
                       ))}
                       {s.keys.length > 3 ? ` and ${s.keys.length - 3} more` : ""}

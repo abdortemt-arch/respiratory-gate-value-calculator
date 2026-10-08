@@ -4,11 +4,9 @@ import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/app/(auth)/sign-in/actions";
 import { can, ROLE_LABELS, type StaffRole } from "@/domain/access";
 import { cn } from "@/lib/cn";
-import type { CompletenessCount } from "@/domain/calculations/completeness";
 import { Button } from "@/components/ui/button";
-import { CompletenessBar } from "@/components/metrics/completeness";
 import { MobileNav } from "./mobile-nav";
-import { NAV_ITEMS } from "./nav-items";
+import { GLOBAL_NAV, type NavHospital } from "./nav-items";
 import { NavLinks } from "./nav-links";
 
 interface ShellUser {
@@ -35,34 +33,20 @@ function UserBlock({ user }: { user: ShellUser }) {
   );
 }
 
-function Completeness({ count }: { count: CompletenessCount }) {
-  return (
-    <Link href="/inputs" className="block space-y-1.5 rounded-lg p-2 hover:bg-surface">
-      <span className="flex items-center justify-between text-xs">
-        <span className="font-medium text-ink-soft">Data completeness</span>
-        <span className="figure text-muted">
-          {count.entered}/{count.total}
-        </span>
-      </span>
-      <CompletenessBar count={count} />
-    </Link>
-  );
-}
-
 export function AppShell({
   user,
-  completeness,
+  hospitals,
   children,
 }: {
   user: ShellUser;
-  completeness: CompletenessCount;
+  hospitals: readonly NavHospital[];
   children: ReactNode;
 }) {
-  const items = NAV_ITEMS.filter((i) => can(user.role, i.permission));
+  const items = GLOBAL_NAV.filter((i) => can(user.role, i.permission) || (i.permission === "view_audit" && hospitals.some((h) => h.role === "manager")));
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[15.5rem_1fr] print:block">
       <aside className="no-print sticky top-0 hidden h-dvh flex-col border-r border-line bg-card lg:flex">
-        <Link href="/overview" className="flex items-center gap-3 px-5 pt-6 pb-5">
+        <Link href="/hospitals" className="flex items-center gap-3 px-5 pt-6 pb-5">
           <Image src="/brand/rg-mark-color.png" alt="" width={36} height={36} priority />
           <span className="leading-tight">
             <span className="block text-sm font-bold tracking-wide text-brand-orange-ink uppercase">Respiratory Gate</span>
@@ -71,31 +55,22 @@ export function AppShell({
         </Link>
         <nav aria-label="Main" className="flex-1 overflow-y-auto px-3">
           <Suspense>
-            <NavLinks items={items} />
+            <NavLinks items={items} hospitals={hospitals} />
           </Suspense>
         </nav>
         <div className="space-y-4 border-t border-line p-4">
-          <Completeness count={completeness} />
           <UserBlock user={user} />
         </div>
       </aside>
 
       <div className="min-w-0">
         <header className="no-print sticky top-0 z-30 flex items-center justify-between border-b border-line bg-card/95 px-4 py-2 backdrop-blur lg:hidden">
-          <Link href="/overview" className="flex items-center gap-2">
+          <Link href="/hospitals" className="flex items-center gap-2">
             <Image src="/brand/rg-mark-color.png" alt="" width={28} height={28} priority />
             <span className="text-sm font-bold tracking-wide text-brand-orange-ink uppercase">Respiratory Gate</span>
           </Link>
           <Suspense>
-            <MobileNav
-              items={items}
-              footer={
-                <div className="space-y-4">
-                  <Completeness count={completeness} />
-                  <UserBlock user={user} />
-                </div>
-              }
-            />
+            <MobileNav items={items} hospitals={hospitals} footer={<UserBlock user={user} />} />
           </Suspense>
         </header>
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8 print:max-w-none print:p-0">{children}</main>

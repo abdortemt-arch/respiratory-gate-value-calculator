@@ -1,13 +1,22 @@
-import { completeness } from "@/domain/calculations/completeness";
 import { AppShell } from "@/components/layout/app-shell";
 import { requireUser } from "@/server/auth/session";
-import { loadWorkspace } from "@/server/data/workspace";
+import { loadHospitalsWithRoles } from "@/server/hospitals/access";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
-  const workspace = await loadWorkspace(user);
+  const hospitals = await loadHospitalsWithRoles(user);
   return (
-    <AppShell user={user} completeness={completeness(workspace.values).model}>
+    <AppShell
+      user={user}
+      hospitals={hospitals.map((h) => ({
+        id: h.id,
+        name: h.name,
+        code: h.code,
+        active: h.active,
+        workbookModelEnabled: h.workbookModelEnabled,
+        role: h.role,
+      }))}
+    >
       {children}
     </AppShell>
   );

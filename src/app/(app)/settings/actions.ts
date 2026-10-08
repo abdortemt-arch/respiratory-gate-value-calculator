@@ -5,6 +5,7 @@ import { isStaffRole, type AppRole } from "@/domain/access";
 import { parseInputText } from "@/domain/calculations/validation";
 import { requestOrigin } from "@/server/auth/redirects";
 import { authorize } from "@/server/auth/session";
+import { authorizeHospital } from "@/server/hospitals/access";
 import { temporaryPassword } from "@/server/auth/temporary-password";
 import { createSupabaseAdminClient, isAdminClientConfigured } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
@@ -71,6 +72,13 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (profileError) {
     await admin.auth.admin.deleteUser(userId);
     return { ok: false, error: "Could not create the profile." };
+  }
+  const hospitalIds = formData.getAll("hospitalIds").filter((v): v is string => typeof v === "string" && UUID.test(v));
+  if (role !== "admin" && hospitalIds.length) {
+    const { error: memberError } = await supabase
+      .from("hospital_members")
+      .insert(hospitalIds.map((hospital_id) => ({ hospital_id, user_id: userId, role: role === "viewer" ? ("viewer" as const) : ("manager" as const) })));
+    if (memberError) return { ok: false, error: "The user was created, but hospital access could not be saved. Add it in the hospital's Settings." };
   }
   revalidatePath("/settings");
   return { ok: true, temporaryPassword: password };
@@ -152,9 +160,9 @@ export async function updateOrganizationName(name: string): Promise<ActionResult
   return { ok: true };
 }
 
-/** Low / Mid / High savings sensitivities of the default scenario (Admin). Entered as percent. */
-export async function updateSensitivities(low: string, mid: string, high: string): Promise<ActionResult> {
-  const auth = await authorize("edit_assumptions");
+/** Low / Mid / High savings sensitivities of a hospital's default scenario (Admin). Entered as percent. */
+export async function updateSensitivities(hospitalId: string, low: string, mid: string, high: string): Promise<ActionResult> {
+  const auth = await authorizeHospital(hospitalId, "edit_assumptions");
   if (!auth.ok) return { ok: false, error: auth.error };
   const percentDef = {
     key: "sensitivity",
@@ -178,7 +186,7 @@ export async function updateSensitivities(low: string, mid: string, high: string
   const { data, error } = await supabase
     .from("scenario_assumptions")
     .update({ low_savings_pct: l, mid_savings_pct: m, high_savings_pct: h })
-    .eq("organization_id", auth.user.organizationId)
+    .eq("hospital_id", auth.ctx.hospital.id)
     .eq("is_default", true)
     .select("id");
   if (error || !data?.length) return { ok: false, error: "Could not update the sensitivities." };

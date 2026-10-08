@@ -1,41 +1,43 @@
 import type { ReactNode } from "react";
-import { can } from "@/domain/access";
 import { PageHeader } from "@/components/layout/app-shell";
 import { ScenarioBar } from "@/components/scenario/scenario-bar";
 import { ScenarioProvider } from "@/components/scenario/scenario-provider";
 import { parseScenarioParams, resolveScenario } from "@/lib/scenario-params";
-import { requireUser } from "@/server/auth/session";
 import { loadWorkspace } from "@/server/data/workspace";
+import { canInHospital, requireHospital, type HospitalContext } from "@/server/hospitals/access";
 import { saveScenario } from "../scenario-actions";
 
 /**
- * Shared frame for scenario-driven pages: verifies the session, loads the
- * workspace, resolves the scenario from the URL and renders the scenario bar.
+ * Shared frame for the Workbook Value Model pages of one hospital: verifies
+ * access, loads the hospital's workbook inputs, resolves the scenario from the
+ * URL and renders the scenario bar.
  */
 export async function ScenarioPage({
+  hospitalId,
   searchParams,
   title,
   description,
   printHeader = true,
   children,
 }: {
+  hospitalId: string;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
   title: string;
   description?: ReactNode;
   /** The printable report carries its own header. */
   printHeader?: boolean;
-  children: ReactNode;
+  children: ReactNode | ((ctx: HospitalContext) => ReactNode);
 }) {
-  const user = await requireUser();
-  const ws = await loadWorkspace(user);
+  const ctx = await requireHospital(hospitalId);
+  const ws = await loadWorkspace(hospitalId);
   const { settings, base } = resolveScenario(parseScenarioParams(await searchParams), ws.scenarios);
-  const canSave = can(user.role, "save_scenarios");
+  const canSave = canInHospital(ctx, "save_scenarios");
 
   return (
     <ScenarioProvider values={ws.values} texts={ws.texts} scenarios={ws.scenarios} initialSettings={settings} initialBaseId={base?.id ?? null}>
       <PageHeader title={title} description={description} className={printHeader ? undefined : "no-print"} />
-      <ScenarioBar canSave={canSave} saveAction={canSave ? saveScenario : undefined} />
-      {children}
+      <ScenarioBar canSave={canSave} saveAction={canSave ? saveScenario.bind(null, hospitalId) : undefined} />
+      {typeof children === "function" ? children(ctx) : children}
     </ScenarioProvider>
   );
 }

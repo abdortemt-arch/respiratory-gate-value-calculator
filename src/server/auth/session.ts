@@ -61,7 +61,7 @@ export async function requireUser(permission: Permission = "view_dashboards"): P
   if (session.status === "signed_out") redirect("/sign-in");
   if (session.status === "no_access") redirect("/no-access");
   if (session.user.mustChangePassword) redirect("/account/set-password");
-  if (!can(session.user.role, permission)) redirect("/overview?denied=1");
+  if (!can(session.user.role, permission)) redirect("/hospitals?denied=1");
   return session.user;
 }
 

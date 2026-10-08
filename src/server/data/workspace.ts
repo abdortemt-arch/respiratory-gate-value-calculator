@@ -3,11 +3,14 @@ import { cache } from "react";
 import { INPUT_DEFINITIONS, isInputKey, type InputKey, type InputValues } from "@/domain/inputs/catalog";
 import type { ScenarioSettings } from "@/domain/scenario";
 import type { SavedScenario } from "@/lib/scenario-params";
-import type { SessionUser } from "../auth/session";
 import { createSupabaseServerClient } from "../supabase/server";
 
 export interface InputMeta {
   readonly id: string;
+  /** Per-hospital metadata (the catalog describes Elite's workbook). */
+  readonly owner: string | null;
+  readonly note: string | null;
+  readonly source: "hospital_data" | "verified_public" | "rg_assumption";
   readonly updatedAt: string | null;
   readonly updatedByName: string | null;
 }
@@ -25,22 +28,25 @@ export interface Workspace {
 
 const toNumber = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 
-/** Everything the dashboards need, read with the user's session (RLS applies). Memoised per request. */
-export const loadWorkspace = cache(async (user: SessionUser): Promise<Workspace> => {
+/**
+ * Everything the Workbook Value Model pages need for one hospital, read with
+ * the user's session (RLS applies). Memoised per request.
+ */
+export const loadWorkspace = cache(async (hospitalId: string): Promise<Workspace> => {
   const supabase = await createSupabaseServerClient();
   const [inputs, scenarios, profiles] = await Promise.all([
     supabase
       .from("hospital_inputs")
-      .select("id, key, numeric_value, text_value, updated_at, updated_by")
-      .eq("organization_id", user.organizationId),
+      .select("id, key, numeric_value, text_value, data_owner, note, source_type, updated_at, updated_by")
+      .eq("hospital_id", hospitalId),
     supabase
       .from("scenario_assumptions")
       .select("*")
-      .eq("organization_id", user.organizationId)
+      .eq("hospital_id", hospitalId)
       .neq("status", "archived")
       .order("is_default", { ascending: false })
       .order("scenario_name"),
-    supabase.from("profiles").select("user_id, full_name").eq("organization_id", user.organizationId),
+    supabase.from("profiles").select("user_id, full_name"),
   ]);
   if (inputs.error) throw inputs.error;
   if (scenarios.error) throw scenarios.error;
@@ -58,6 +64,9 @@ export const loadWorkspace = cache(async (user: SessionUser): Promise<Workspace>
     texts[row.key] = row.text_value;
     meta[row.key] = {
       id: row.id,
+      owner: row.data_owner,
+      note: row.note,
+      source: row.source_type,
       updatedAt: row.updated_by ? row.updated_at : null,
       updatedByName: row.updated_by ? (people[row.updated_by] ?? "Former user") : null,
     };

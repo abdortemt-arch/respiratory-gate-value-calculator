@@ -6,3 +6,4 @@ export * from "./period";
 export * from "./aggregate";
 export * from "./variance";
 export * from "./compare";
+export * from "./portfolio";

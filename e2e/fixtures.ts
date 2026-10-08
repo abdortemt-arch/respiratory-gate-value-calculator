@@ -2,14 +2,18 @@ import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { INPUT_DEFINITIONS } from "../src/domain/inputs/catalog";
 import { WORKBOOK_DEFAULT_SCENARIO } from "../src/domain/scenario";
+import { cleanupOrganization } from "../supabase/tests/helpers";
 
 /**
- * Isolated test organisation with catalog rows, the workbook default scenario
- * and one user per role. Removed again by `teardown()`. Never touches real data.
+ * Isolated test organisation with one workbook hospital (catalog rows and the
+ * workbook default scenario), an Admin and a Manager of that hospital. Removed
+ * again by `teardown()`. Never touches real data.
  */
 export interface TestWorld {
   readonly orgId: string;
   readonly orgName: string;
+  readonly hospitalId: string;
+  readonly hospitalName: string;
   readonly password: string;
   readonly emails: { admin: string; manager: string; viewer: string };
   readonly service: SupabaseClient;
@@ -27,14 +31,21 @@ export async function setupWorld(): Promise<TestWorld> {
   const service = serviceClient();
   const run = randomUUID().slice(0, 8);
   const orgId = randomUUID();
-  const orgName = `E2E Hospital ${run}`;
+  const orgName = `E2E Org ${run}`;
+  const hospitalId = randomUUID();
+  const hospitalName = `E2E Hospital ${run}`;
   const password = `E2e-${randomUUID()}`;
   await service.from("organizations").insert({ id: orgId, name: orgName }).throwOnError();
+  await service
+    .from("hospitals")
+    .insert({ id: hospitalId, organization_id: orgId, name: hospitalName, code: `E2E-${run.slice(0, 4).toUpperCase()}`, workbook_model_enabled: true })
+    .throwOnError();
   await service
     .from("hospital_inputs")
     .insert(
       INPUT_DEFINITIONS.map((d) => ({
         organization_id: orgId,
+        hospital_id: hospitalId,
         key: d.key,
         category: d.group,
         label: d.label,
@@ -51,6 +62,7 @@ export async function setupWorld(): Promise<TestWorld> {
     .from("scenario_assumptions")
     .insert({
       organization_id: orgId,
+      hospital_id: hospitalId,
       scenario_name: "Workbook default",
       occupancy_rate: s.occupancyRate,
       package_price: s.packagePrice,
@@ -72,17 +84,15 @@ export async function setupWorld(): Promise<TestWorld> {
       .from("profiles")
       .insert({ user_id: data.user.id, organization_id: orgId, full_name: `E2E ${role}`, role })
       .throwOnError();
+    if (role === "manager") {
+      await service.from("hospital_members").insert({ hospital_id: hospitalId, user_id: data.user.id, role: "manager" }).throwOnError();
+    }
   }
-  return { orgId, orgName, password, emails, service, userIds };
+  return { orgId, orgName, hospitalId, hospitalName, password, emails, service, userIds };
 }
 
 export async function teardown(world: TestWorld): Promise<void> {
   const { service, orgId } = world;
   const { data: profiles } = await service.from("profiles").select("user_id").eq("organization_id", orgId);
-  for (const p of profiles ?? []) await service.auth.admin.deleteUser(p.user_id);
-  await service.from("scenario_assumptions").delete().eq("organization_id", orgId);
-  await service.from("audit_log").delete().eq("organization_id", orgId);
-  await service.from("hospital_inputs").delete().eq("organization_id", orgId);
-  await service.from("profiles").delete().eq("organization_id", orgId);
-  await service.from("organizations").delete().eq("id", orgId);
+  await cleanupOrganization(service, orgId, (profiles ?? []).map((p) => p.user_id as string));
 }
