@@ -27,6 +27,8 @@ jobs:
       - run: pnpm lint
       - name: No secrets in the repository; service-role key only in server-only code
         run: pnpm check:secrets
+      - name: One-time setup SQL matches the migrations
+        run: pnpm db:setup-sql --check
       - run: pnpm typecheck
       - run: pnpm test
       # Builds without Supabase credentials on purpose: the app must build before it is configured.

@@ -2,6 +2,19 @@
 
 Goal: a real deployment of the `claude/step1-workbook-analysis` branch that you can open and test, backed by a hosted Supabase project — before anything is merged to `main`.
 
+## Simple path (used for the current staging)
+
+No GitHub secrets and no CLI:
+
+1. **Supabase project** in a European region (staging: London `eu-west-2`); Auth: sign-up **off**, Email **on**, minimum password length 10, letters and digits.
+2. **Migrations, once:** Supabase → **SQL Editor** → **New query** → paste the whole of [`supabase/setup/apply-all-migrations.sql`](../supabase/setup/apply-all-migrations.sql) → **Run**. It applies all migrations in one transaction (all or nothing), refuses to run if the platform tables already exist, contains no demo or test data, and records the migrations so a later `supabase db push` applies only newer ones. Read-only check afterwards: 21 public tables, 0 without RLS, 61 policies, 5 migrations, 15 services, hospital *Elite Hospital*, 0 demo hospitals.
+3. **First Admin:** step 5 below.
+4. **Vercel:** step 3 below — only the three environment variables; the bypass secret is needed only for automated tests.
+
+The automated `Staging` workflow below remains available for later (it needs the GitHub secrets).
+
+---
+
 **Who does what**
 
 | You (needs your accounts) | Automated (GitHub Actions, `.github/workflows/staging.yml`) |

@@ -16,6 +16,7 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/server/supabase/database.types.ts",
     "db:manifest": "tsx scripts/db/schema-manifest.ts",
+    "db:setup-sql": "tsx scripts/db/build-setup-sql.ts",
     "db:verify-hosted": "tsx scripts/db/verify-hosted.ts",
     "test:db": "node scripts/db/with-local-supabase.mjs vitest run supabase/tests",
     "user:create": "tsx --env-file-if-exists=.env.local scripts/create-user.ts",
