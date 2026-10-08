@@ -1,0 +1,3 @@
+-- Local development seed (supabase db reset). Intentionally empty.
+-- Reference data lives in migrations so that `supabase db push` provisions production too.
+-- Never seed users with known passwords here: see README "Create the first Admin".
