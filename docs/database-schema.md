@@ -1,13 +1,15 @@
-# Database Schema — Phase 1 (Supabase Postgres)
+# Database Schema (Supabase Postgres)
 
-Status: **implemented.** The source of truth is `supabase/migrations/` (`20261008000000_init.sql` for schema, RLS and triggers; `20261008000100_reference_data.sql` for reference data). This document explains the design. It implements the minimum data model from `CLAUDE.md`, with a few additions, each justified below. Behaviour is verified by `supabase/tests/rls.test.ts` through the real Supabase Auth + Data API.
+Status: **implemented.** The source of truth is `supabase/migrations/`: `20261008000000_init.sql` (Phase 1 schema, RLS and triggers), `20261008000100_reference_data.sql` (reference data), `20261009000000_multi_hospital.sql` (multi-hospital platform, §8–§12) and `20261009000100_workbook_templates.sql` (workbook model template). This document explains the design. Behaviour is verified through the real Supabase Auth + Data API by `supabase/tests/rls.test.ts` and `supabase/tests/hospitals.test.ts`.
+
+§1–§6 describe the Phase 1 tables (the Workbook Value Model); since the multi-hospital migration they are scoped by `hospital_id` as well as `organization_id`.
 
 Design rules:
 
-- **Five tables only:** `organizations`, `profiles`, `hospital_inputs`, `scenario_assumptions`, `audit_log`.
+- **Phase 1 started with five tables** (`organizations`, `profiles`, `hospital_inputs`, `scenario_assumptions`, `audit_log`); the multi-hospital platform adds the tables in §8.
 - **`NULL` means unknown; `0` means zero.** Never default a hospital value to 0.
 - **Calculations are not stored.** They are recomputed from inputs by `src/domain`. The one exception is an approval snapshot, which freezes an approved scenario's figures.
-- **Every row carries `organization_id`.** Phase 1 has one organisation (Elite Hospital), but RLS is already org-scoped, so multi-hospital support needs no migration of existing rows.
+- **Every row carries `organization_id`**, and hospital data also carries `hospital_id`; RLS is hospital-level (§11).
 - **No patient-level data.** No table or column may hold patient-identifiable information.
 - **RLS on every table, deny by default.** The audit log is written only by triggers.
 
@@ -205,11 +207,101 @@ Re-running it never overwrites values. Once deployed, catalog changes go in a **
 
 Volumes are tiny (tens of rows plus an append-only log), so there are no performance concerns in Phase 1.
 
-## 7. Future extensions (not built in Phase 1)
+## 7. Future extensions
+
+Multiple hospitals and monthly reporting periods are now built (§8–§12). Still open:
 
 | Need | Path |
 |---|---|
-| Multiple hospitals | Add an org switcher. RLS already scopes by `organization_id`; profiles may later map to several organisations via a join table. |
-| Reporting periods (FY2025 vs FY2026 inputs) | Add a `period` column to `hospital_inputs` and widen the unique key to `(organization_id, period, key)`. The audit trail meanwhile serves as history. |
+| Several operator organisations | Profiles map to one organisation today; a join table would allow consultants across organisations. Hospital-level RLS needs no change. |
 | Physician / patient portals | A **separate schema** (e.g. `clinical`) with its own RLS, encryption and retention, gated by the `CLAUDE.md` PHI checklist. No foreign keys from clinical tables into the financial tables, and no financial-table policies for the reserved roles. |
 | Scenario comparison history | `approved_snapshot` already supports it; add a list view. |
+
+---
+
+## 8. Multi-hospital platform (migration `20261009000000_multi_hospital.sql`)
+
+The organisation is now the platform operator (*Respiratory Gate Egypt*); each client hospital is configured independently. Configuration (what a hospital **is**) is separate from monthly operating data (what **happened**), and prices and costs are effective-dated versions, so a month is always calculated with the versions in force that month.
+
+```
+organizations ─┬─ services (library: NIV, HFNC, IMV, … custom)
+               └─ hospitals ─┬─ hospital_members (manager | viewer)
+                             ├─ hospital_departments
+                             ├─ hospital_services ─┬─ hospital_service_departments ─ hospital_departments
+                             │                     └─ service_price_versions      (effective-dated, immutable)
+                             ├─ equipment
+                             ├─ cost_items ── cost_versions                        (effective-dated, immutable)
+                             ├─ operating_periods ─┬─ service_activity             (volume per service × department)
+                             │   (one per month)   ├─ period_stats                 (patients, bed-days, ventilator days)
+                             │                     ├─ period_cost_entries          (quantities: consumables, FTE)
+                             │                     └─ period_savings               (documented cost avoidance)
+                             ├─ hospital_inputs, scenario_assumptions              (Workbook Value Model, per hospital)
+                             └─ audit_log (hospital_id, period_id, entity_label, reason)
+```
+
+### Tables
+
+| Table | Key columns | Notes |
+|---|---|---|
+| `hospitals` | `organization_id`, `name`, `code` (upper-case, unique per org), `hospital_type`, `total_beds`, `location`, `notes`, `currency` (EGP), `active`, `workbook_model_enabled` | Never deleted: deactivated. Inactive hospitals stay readable; managers cannot change them. |
+| `hospital_members` | `hospital_id`, `user_id`, `role` (`manager` \| `viewer`), `active` | Grants access to one hospital. Organisation Admins need no membership. |
+| `hospital_departments` | `name`, `category`, `beds`, `rt_coverage`, `notes`, `active`, `sort_order` | Custom names per hospital (AICU, PICU…). |
+| `services` | `organization_id`, `name`, `code`, `category`, `description`, `active` | Shared library so NIV in Hospital A compares with NIV in Hospital B. 15 defaults are seeded for every organisation. |
+| `hospital_services` | `hospital_id`, `service_id`, `active`, `notes` | A service as provided by one hospital; prices hang here, never on the library. |
+| `hospital_service_departments` | `hospital_service_id`, `department_id`, `active` | Where the hospital provides the service. |
+| `service_price_versions` | `amount`, `currency`, `billing_unit`, `effective_from` (1st of month), `notes`, `change_reason`, `voided`, `void_reason`, `voided_by/at`, `created_by/at` | One non-voided version per service and month. View `service_price_timeline` derives `effective_to`. |
+| `equipment` | `name`, `category`, `quantity`, `ownership`, `department_id`, `acquired_on`, `active` | Register; linked cost items carry the money. |
+| `cost_items` | `name`, `category` (staffing, consumable, equipment, maintenance, contract, service/package cost, other), `basis` (`per_unit` \| `monthly` \| `per_service_unit`), `unit_label`, links to service / department / equipment, `is_rt_staff`, `ended_from` | Staffing = monthly cost per FTE (`per_unit`, FTEs entered monthly). |
+| `cost_versions` | like price versions | Unit cost, monthly amount or cost per FTE from a month on. |
+| `operating_periods` | `period_month` (1st of month, unique per hospital), `status`, `notes`, `finalized_snapshot`, `finalized_at/by`, `locked_at/by` | Status changes only through `set_period_status()`. |
+| `service_activity` | `period_id`, `hospital_service_id`, `department_id` (null = whole hospital), `quantity` (null = not entered) | Unique per period × service × department (nulls not distinct). |
+| `period_stats` | `department_id` (null = whole hospital), `patients`, `admissions`, `occupied_bed_days`, `ventilator_days` | |
+| `period_cost_entries` | `cost_item_id`, `quantity` | |
+| `period_savings` | `category`, `description`, `amount` | Documented savings only — never estimates. |
+| `workbook_input_templates` | catalog rows | Copied into a hospital by `enable_workbook_model()`; hospital values blank, RG assumptions at defaults. |
+
+`billing_unit` enum: per procedure, patient, session, day, ventilator day, hour, case; monthly package; fixed contract (amount per month, independent of volume); percentage (of a billed base entered as the month's quantity); custom.
+
+### Integrity
+
+- **Composite foreign keys** (`hospital_id`, `…_id`) make cross-hospital references impossible: a hospital's service cannot be assigned to another hospital's department, priced in another hospital, or recorded in another hospital's period.
+- **Checks**: effective dates and period months on the 1st; non-negative amounts and quantities; percentages ≤ 100; a voided version needs a reason; `per_service_unit` costs need a linked service; `is_rt_staff` only for staffing.
+- **No DELETE privilege** on configuration and versions (deactivate / end / void instead). Period entries may be deleted only while the period is Draft or In review.
+
+## 9. Effective-dated prices and costs
+
+- A version applies from `effective_from` until the day before the next non-voided version of the same service (or cost item). The version for a month is the latest non-voided version effective on or before it.
+- Versions are **immutable**: only `voided` and `void_reason` are updatable (column grants), the trigger `private.guard_version()` rejects any other change, and a voided version cannot be restored.
+- Adding or voiding a version that would change a **finalized or locked** month is a historical correction: Admin only, with `change_reason` (or the void reason). Future versions and versions for open months need no reason.
+- Consequence: adding the current price never changes earlier months (tested in `supabase/tests/hospitals.test.ts`: January EGP 150,000, February EGP 180,000, March EGP 192,000 stay the same after an October price).
+
+## 10. Monthly periods, locking and corrections
+
+```
+Draft ⇄ In review ⇄ Finalized → Locked
+             Finalized → Draft         (Admin, reason)
+             Locked → Finalized/…       (Admin, reason)
+```
+
+- `public.set_period_status(p_period, p_status, p_reason, p_snapshot)` (security definer) enforces the transitions: managers move Draft ↔ In review → Finalized; locking, unlocking and reopening are Admin-only, and unlocking or reopening needs a reason. Finalizing stores the calculated results in `finalized_snapshot`.
+- `private.guard_period_data()` on activity, statistics, cost entries and savings: in a Finalized or Locked period only an Admin may change data, each change must carry `change_reason` (it applies to that one change), and nothing can be deleted.
+- Every correction is written to `audit_log` with `action = 'correction'`, the reason, the hospital, the period, and the previous and new value.
+
+## 11. Hospital-level row-level security
+
+| Helper (private schema) | Meaning |
+|---|---|
+| `is_org_admin(org)` | Active Admin of the organisation. |
+| `hospital_role(h)` | `admin` for organisation Admins; otherwise the active membership's role, capped at `viewer` for Viewer profiles; `null` = no access. |
+| `can_read_hospital(h)` | Any role. |
+| `can_write_hospital(h)` | Admin; or manager while the hospital is active. |
+| `is_hospital_admin(h)` | Admin. |
+
+Policies: every hospital-scoped table — read with `can_read_hospital`, insert/update with `can_write_hospital`. Hospitals: created and edited by Admins only. Members: managed by Admins; users can read their own memberships. Service library: read by staff, added by Admins and managers, edited by Admins. Workbook inputs and scenarios became hospital-scoped with the same rules as before (Respiratory Gate assumptions Admin-only). Audit log: organisation Admins see all rows; managers see rows of their hospitals; viewers see none. Reserved physician/patient roles are granted nothing.
+
+## 12. Audit, workbook model and migration of existing data
+
+- `private.audit_change()` audits every configuration, version, period and period-data table: inserts and deletes as one row with the record summary, updates per changed field, with `hospital_id`, `period_id`, a readable `entity_label` (e.g. *NIV — AICU*, *NIV price from Feb 2026*) and `reason`. Numbers are stored without trailing zeros.
+- `public.enable_workbook_model(p_hospital)` (Admin) attaches the Elite / Workbook Value Model to any hospital: copies `workbook_input_templates` (hospital data blank — never invented) and creates the *Workbook default* scenario.
+- Existing data: the organisation was renamed *Respiratory Gate Egypt*; *Elite Hospital* (code `ELITE`, fixed id `…0101`) became its first hospital with the workbook model enabled; all workbook inputs, scenarios and audit rows moved to it; existing managers and viewers became members of it, so nobody lost access.
+- `pnpm db:demo` loads **synthetic** demo hospitals (*Demo Hospital A/B*) with three months of data for local exploration. It refuses a hosted project unless run with `--remote`.

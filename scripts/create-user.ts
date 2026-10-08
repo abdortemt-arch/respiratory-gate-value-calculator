@@ -1,7 +1,10 @@
 /**
  * Create a platform user from the command line — used to create the first Admin.
  *
- *   pnpm user:create --email you@hospital.org --name "Your Name" [--role admin|manager|viewer]
+ *   pnpm user:create --email you@hospital.org --name "Your Name" [--role admin|manager|viewer] [--hospitals CODE-A,CODE-B]
+ *
+ * Managers and viewers only see the hospitals they are given (--hospitals takes
+ * hospital codes); Admins see every hospital.
  *
  * Reads NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from .env.local
  * (or the environment). Prints a one-time temporary password; the user must
@@ -21,6 +24,7 @@ async function main() {
       name: { type: "string" },
       role: { type: "string", default: "admin" },
       organization: { type: "string" },
+      hospitals: { type: "string" },
     },
   });
   const email = values.email?.trim().toLowerCase();
@@ -71,6 +75,22 @@ async function main() {
     await admin.auth.admin.deleteUser(created.user.id);
     console.error(`Could not create the profile: ${profileError.message}`);
     process.exit(1);
+  }
+
+  const codes = (values.hospitals ?? "").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
+  if (role !== "admin" && codes.length) {
+    const { data: hospitals } = await admin.from("hospitals").select("id, code").eq("organization_id", organizationId).in("code", codes);
+    const missing = codes.filter((c) => !hospitals?.some((h) => h.code === c));
+    if (missing.length) console.warn(`Unknown hospital codes (skipped): ${missing.join(", ")}`);
+    if (hospitals?.length) {
+      const { error } = await admin
+        .from("hospital_members")
+        .insert(hospitals.map((h) => ({ hospital_id: h.id, user_id: created.user.id, role: role === "viewer" ? "viewer" : "manager" })));
+      if (error) console.warn(`Could not give hospital access: ${error.message}`);
+      else console.log(`Hospital access: ${hospitals.map((h) => h.code).join(", ")}`);
+    }
+  } else if (role !== "admin") {
+    console.log("No hospital access yet: an Admin can add it in the hospital's Settings → Access.");
   }
 
   console.log(`\nCreated ${role} ${name} <${email}>`);

@@ -188,9 +188,13 @@ Three layers of enforcement:
 
 `CLAUDE.md` names Admin as the audit-log role. Read-only audit access for Manager/Finance is implemented so they can see who changed the inputs they own; it is one policy line to remove if the hospital prefers Admin-only.
 
+Since the multi-hospital milestone these roles apply **per hospital** (see §16): Admins administer every hospital; Managers and Viewers act only in hospitals they are members of.
+
 Accounts are **invite-only**: self sign-up is disabled in Supabase Auth and admins invite users from Settings. Future roles exist only as enum values; no policy grants them anything.
 
 ## 8. Screens
+
+> Since the multi-hospital milestone (§16) these Workbook Value Model screens live under `/hospitals/[hospitalId]/workbook/…` for each hospital that has the model enabled; the routes below redirect there.
 
 Global layout: a sidebar (bottom nav on phones) holding the colour logo and the eight sections; a sticky **Scenario bar** (occupancy · package price · savings level) on Overview, Revenue, Savings, Value Bridge and Reports; and a **data completeness** pill in the header.
 
@@ -286,3 +290,78 @@ Steps 2 and 3 can run in parallel because the engine has no UI dependency.
 | LibreOffice vs Excel recalculation differences | Functions used are standard; Finance spot-checks one populated scenario in Excel |
 | Low-resolution / raster-only logo files | Interim trimmed PNGs; request SVG originals |
 | Scope creep toward portals | Phase 1 boundary in `CLAUDE.md`; reserved roles only |
+
+## 16. Multi-hospital platform
+
+The workbook calculator is now one financial model inside a platform that runs Respiratory Care for many hospitals, month by month.
+
+### Concepts
+
+| Concept | Meaning |
+|---|---|
+| Organisation | The operator (Respiratory Gate Egypt). Users belong to it. |
+| Hospital | A client hospital, configured independently (departments, services, prices, costs, equipment). Deactivated, never deleted. |
+| Configuration vs operations | What a hospital **is** (configuration, versioned) is separate from what **happened** in a month (operating period). |
+| Effective-dated versions | Prices and costs apply from a month until the next version. A month is always calculated with the versions in force that month, so new prices never rewrite history. |
+| Operating period | One per hospital and month: service volumes per department, statistics, cost quantities, documented savings. Draft → In review → Finalized → Locked. |
+| Financial models | *Monthly operating model* (always on) and *Elite / Workbook Value Model* (optional per hospital, full workbook parity). |
+
+### Modules
+
+```
+src/domain/hospital/     pure TS, unit tested
+  month.ts               month arithmetic (YYYY-MM)
+  versions.ts            version in force for a month, timelines
+  period.ts              monthly revenue, costs, savings, net, KPIs (Figure = complete | partial | missing)
+  aggregate.ts           quarter / year / YTD / selected months, each month at its own prices
+  variance.ts            why B differs from A: volume, price, cost quantity, unit cost, savings drivers
+  compare.ts             metric rows for months, hospitals, departments, services
+  spec.ts                comparison periods ("2026-02", "2026-Q1", "2026", "ytd:2026-03", "2026-01+2026-03")
+  portfolio.ts           portfolio totals, highest value / growth, cost increases, revenue changes
+src/server/hospitals/
+  repository.ts          Supabase rows → domain types (client passed in; used by DB tests too)
+  access.ts              role in a hospital, requireHospital / authorizeHospital
+  load.ts                request-memoised loaders
+src/app/(app)/hospitals/_actions/   Server Actions: hospital, config, costs, periods
+```
+
+Revenue = Σ volume × the price version in force that month (`fixed_contract` earns its amount per month; `percentage` applies to a billed base). Costs: `per_unit` (unit cost × quantity, e.g. FTE × monthly cost per FTE), `monthly`, `per_service_unit` (× the linked service's volume). Net value = revenue − operating cost + documented savings, and is **missing** until operating cost exists. Missing volumes, prices and quantities make figures partial and are listed — never zero.
+
+### Routes
+
+| Route | Screen |
+|---|---|
+| `/hospitals` | Portfolio: hospitals, month and YTD revenue / cost / savings / net, highest value and growth, cost increases, revenue changes, drill-down |
+| `/hospitals/new`, `/hospitals/[id]/setup/[step]` | Onboarding: hospital → departments → services (with departments) → prices |
+| `/hospitals/[id]` | Hospital overview for a month: revenue, operating cost, staffing, consumables, savings, net, vs previous month, YTD, services, operations, trend |
+| `/hospitals/[id]/periods`, `/periods/[YYYY-MM]` | Monthly periods; period workspace (activity, statistics, cost quantities, savings, status, corrections) |
+| `/hospitals/[id]/departments`, `/services`, `/services/[hsId]` | Configuration; service analytics with pricing history |
+| `/hospitals/[id]/pricing` | Current, previous and scheduled prices; add a price; pricing history incl. voided versions |
+| `/hospitals/[id]/costs`, `/staffing`, `/equipment` | Cost items and versions; roles per FTE; equipment register |
+| `/hospitals/[id]/savings` | Documented savings by month and category |
+| `/hospitals/[id]/reports` | Printable report for a month, quarter, YTD or year |
+| `/hospitals/[id]/comparisons` | Month vs month, selected months, quarter, year, YTD vs prior year, department vs department, service vs service, with drivers |
+| `/hospitals/[id]/audit`, `/settings` | Hospital audit log (corrections and reasons); details, status, access, financial models |
+| `/hospitals/[id]/workbook/…` | Elite / Workbook Value Model (overview, inputs, revenue, savings, value bridge, report, scenarios & assumptions) |
+| `/comparisons` | Hospital vs hospital, services side by side, ranking |
+| `/audit`, `/settings` | Organisation-wide audit; account, users with hospital access, service library, organisation |
+
+### Access
+
+| | Admin (organisation) | Manager (member) | Viewer (member) |
+|---|---|---|---|
+| See hospitals | all | own | own |
+| Create / edit / deactivate hospitals, members, workbook model | ✓ | ✗ | ✗ |
+| Configure departments, services, prices, costs, equipment | ✓ | ✓ (active hospital) | ✗ |
+| Enter monthly data; Draft ↔ In review → Finalized | ✓ | ✓ (open months) | ✗ |
+| Lock, unlock, reopen; correct finalized/locked months (with reason) | ✓ | ✗ | ✗ |
+| Hospital audit log | ✓ | ✓ | ✗ |
+
+Enforced three times: page guards (`requireHospital`), Server Actions (`authorizeHospital`), and Postgres (hospital-level RLS, column grants, guard triggers — `docs/database-schema.md` §8–§12).
+
+### Tests
+
+- `src/domain/hospital/hospital.test.ts`: NIV acceptance (Jan 1,500 × 100 = 150,000; Feb 1,800 × 100 = 180,000; Mar 1,600 × 120 = 192,000; unchanged after a later price; Hospital B at its own price), costs, KPIs, aggregation, variance, comparisons, portfolio.
+- `supabase/tests/hospitals.test.ts`: the same figures read back from Postgres through RLS, plus isolation, versions, locking, corrections and audit.
+- `e2e/hospitals.spec.ts`: the 20-step acceptance flow in a browser, costs and corrections, a manager limited to their hospital, phone layouts.
+
