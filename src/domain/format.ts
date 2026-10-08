@@ -36,3 +36,10 @@ export function formatPercent(fraction: number): string {
 export function formatNumber(value: number): string {
   return twoDp.format(value);
 }
+
+/** Money in any ISO currency: "EGP 1,500", "USD 1,250.50". */
+export function formatMoney(value: number, currency = "EGP"): string {
+  if (currency === "EGP" && Number.isInteger(value)) return formatEgp(value);
+  const sign = value < 0 ? "−" : "";
+  return `${sign}${currency} ${twoDp.format(Math.abs(value))}`;
+}

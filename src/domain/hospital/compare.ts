@@ -2,7 +2,7 @@
  * Side-by-side metrics for any two summaries: month vs month, quarter vs
  * quarter, year vs year or hospital vs hospital.
  */
-import type { FinancialSummary } from "./period";
+import type { DepartmentSummary, FinancialSummary, ServiceSummary } from "./period";
 
 export type MetricFormat = "money" | "number" | "percent";
 
@@ -47,5 +47,32 @@ export function compareSummaries(a: FinancialSummary, b: FinancialSummary): Metr
     row("costPerPatient", "Cost per patient", "money", a.kpis.costPerPatient, b.kpis.costPerPatient, false),
     row("costPerVentilatorDay", "Cost per ventilator day", "money", a.kpis.costPerVentilatorDay, b.kpis.costPerVentilatorDay, false),
     row("occupancy", "Occupancy", "percent", a.kpis.occupancy, b.kpis.occupancy),
+  ];
+}
+
+/** Department vs department within one summary (or across two summaries of the same hospital). */
+export function compareDepartments(a: DepartmentSummary, b: DepartmentSummary, days: number): MetricRow[] {
+  const perBed = (d: DepartmentSummary) => (d.revenue === null || !d.beds ? null : d.revenue / d.beds);
+  const occupancy = (d: DepartmentSummary) => (d.stats.occupiedBedDays === null || !d.beds || !days ? null : d.stats.occupiedBedDays / (d.beds * days));
+  return [
+    row("revenue", "Revenue", "money", a.revenue, b.revenue),
+    row("volume", "Service volume (all units)", "number", a.volume, b.volume),
+    row("beds", "Beds", "number", a.beds, b.beds),
+    row("revenuePerBed", "Revenue per bed", "money", perBed(a), perBed(b)),
+    row("patients", "Patients", "number", a.stats.patients, b.stats.patients),
+    row("occupiedBedDays", "Occupied bed-days", "number", a.stats.occupiedBedDays, b.stats.occupiedBedDays),
+    row("ventilatorDays", "Ventilator days", "number", a.stats.ventilatorDays, b.stats.ventilatorDays),
+    row("occupancy", "Occupancy", "percent", occupancy(a), occupancy(b)),
+  ];
+}
+
+/** Service vs service (two services, or the same service in two periods or hospitals). */
+export function compareServices(a: ServiceSummary, b: ServiceSummary): MetricRow[] {
+  return [
+    row("price", "Price (average realised)", "money", a.price, b.price),
+    row("volume", "Volume", "number", a.volume, b.volume),
+    row("revenue", "Revenue", "money", a.revenue.value, b.revenue.value),
+    row("directCost", "Direct cost", "money", a.directCost, b.directCost, false),
+    row("contribution", "Contribution", "money", a.contribution, b.contribution),
   ];
 }

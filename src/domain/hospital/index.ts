@@ -7,3 +7,5 @@ export * from "./aggregate";
 export * from "./variance";
 export * from "./compare";
 export * from "./portfolio";
+export * from "./describe";
+export * from "./spec";

@@ -28,6 +28,7 @@ import {
   type PeriodInput,
   type PeriodStatus,
   type PriceVersion,
+  type ServiceCategory,
 } from "@/domain/hospital";
 import type { Database } from "../supabase/database.types";
 
@@ -97,6 +98,8 @@ export interface PeriodRecord {
   readonly lockedAt: string | null;
   readonly lockedBy: string | null;
   readonly createdAt: string;
+  /** Results stored when the month was finalized (for later verification). */
+  readonly snapshot: { readonly revenue?: number | null; readonly costs?: number | null; readonly net?: number | null } | null;
   /** Raw row ids, so the UI can update existing entries. */
   readonly activityIds: Readonly<Record<string, string>>;
 }
@@ -322,7 +325,24 @@ export async function loadPeriods(db: Db, hospitalId: string, months?: readonly 
       lockedAt: p.locked_at,
       lockedBy: p.locked_by,
       createdAt: p.created_at,
+      snapshot: p.finalized_snapshot && typeof p.finalized_snapshot === "object" && !Array.isArray(p.finalized_snapshot) ? (p.finalized_snapshot as PeriodRecord["snapshot"]) : null,
       activityIds: Object.fromEntries(a.map((x) => [`${x.hospital_service_id}:${x.department_id ?? ""}`, x.id])),
     };
   });
+}
+
+export interface LibraryServiceRow {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string | null;
+  readonly category: ServiceCategory;
+  readonly description: string | null;
+  readonly active: boolean;
+}
+
+/** The organisation's respiratory service library. */
+export async function loadServiceLibrary(db: Db): Promise<LibraryServiceRow[]> {
+  const { data, error } = await db.from("services").select("id, name, code, category, description, active").order("name");
+  if (error) throw error;
+  return data.map((s) => ({ ...s, category: pick(SERVICE_CATEGORIES, s.category, "other") as ServiceCategory }));
 }

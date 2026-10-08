@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { aggregate } from "./aggregate";
-import { compareSummaries } from "./compare";
+import { compareDepartments, compareServices, compareSummaries } from "./compare";
+import { describePriceVersion, formatPrice } from "./describe";
 import { quarterMonths, ytdMonths } from "./month";
 import { buildPortfolio, latestMonth, type HospitalData } from "./portfolio";
+import { parseSpec, previousSpec, priorYear, quartersOf, specLabel, specMonths, specToString, summarizeSpec } from "./spec";
 import { calculatePeriod, type FinancialSummary } from "./period";
 import type { CostItemConfig, CostVersion, HospitalConfig, PeriodInput, PriceVersion } from "./types";
 import { explainVariance } from "./variance";
@@ -421,5 +423,61 @@ describe("portfolio", () => {
     expect(p.costIncreases).toEqual([
       { hospitalId: "hosp-b", hospitalName: "Hospital B", item: "Respiratory therapist", from: 100_000, to: 110_000, increase: 10_000 },
     ]);
+  });
+});
+
+describe("price descriptions", () => {
+  it("describes prices in the words of their billing unit", () => {
+    expect(formatPrice(1800, "EGP", "per_day")).toBe("EGP 1,800 per day");
+    expect(formatPrice(12, "EGP", "percentage")).toBe("12% of the billed base");
+    expect(formatPrice(50_000, "EGP", "fixed_contract")).toBe("EGP 50,000 per month (fixed contract)");
+    expect(formatPrice(1250.5, "USD", "per_session")).toBe("USD 1,250.5 per session");
+    expect(describePriceVersion({ amount: 1500, currency: "EGP", billingUnit: "per_case", effectiveFrom: "2026-01" })).toBe("EGP 1,500 per case from Jan 2026");
+  });
+});
+
+describe("comparison periods", () => {
+  it("parses and describes months, quarters, years, YTD and selections", () => {
+    expect(parseSpec("2026-02")).toEqual({ kind: "month", month: "2026-02" });
+    expect(parseSpec("2026-Q1")).toEqual({ kind: "quarter", year: 2026, quarter: 1 });
+    expect(parseSpec("2026")).toEqual({ kind: "year", year: 2026 });
+    expect(parseSpec("ytd:2026-03")).toEqual({ kind: "ytd", month: "2026-03" });
+    expect(parseSpec("2026-03+2026-01")).toEqual({ kind: "months", months: ["2026-01", "2026-03"] });
+    expect(parseSpec("2026-13")).toBeNull();
+    expect(parseSpec("2026-Q5")).toBeNull();
+    for (const s of ["2026-02", "2026-Q1", "2026", "ytd:2026-03", "2026-01+2026-03"]) expect(specToString(parseSpec(s)!)).toBe(s);
+    expect(specLabel(parseSpec("2026-Q1")!)).toBe("Q1 2026");
+    expect(specLabel(parseSpec("ytd:2026-03")!)).toBe("YTD Mar 2026");
+    expect(specMonths(parseSpec("ytd:2026-03")!)).toEqual(["2026-01", "2026-02", "2026-03"]);
+    expect(specToString(priorYear(parseSpec("ytd:2026-03")!))).toBe("ytd:2025-03");
+    expect(specToString(previousSpec(parseSpec("2026-Q1")!))).toBe("2025-Q4");
+    expect(quartersOf(["2026-01", "2026-04", "2025-12"])).toEqual(["2026-Q2", "2026-Q1", "2025-Q4"]);
+  });
+
+  it("summarises a span with each month at its own price, and flags missing months", () => {
+    const config = hospitalA();
+    const monthly = [period("2026-01", 60, 40), period("2026-02", 100, 0), period("2026-03", 120, 0)].map((p) => calculatePeriod(config, p));
+    const q1 = summarizeSpec(config, monthly, parseSpec("2026-Q1")!);
+    expect(q1.revenue.value).toBe(522_000);
+    expect(q1.revenue.status).toBe("complete");
+    const selected = summarizeSpec(config, monthly, parseSpec("2026-01+2026-03")!);
+    expect(selected.revenue.value).toBe(150_000 + 192_000);
+    const q2 = summarizeSpec(config, monthly, parseSpec("2026-Q2")!);
+    expect(q2.revenue.status).toBe("missing");
+    const year = summarizeSpec(config, monthly, parseSpec("2026")!);
+    expect(year.revenue.value).toBe(522_000);
+    expect(year.revenue.status).toBe("partial"); // nine months without a period
+  });
+
+  it("compares departments and services", () => {
+    const s = calculatePeriod(hospitalA(), period("2026-01", 60, 40));
+    const [aicu, picu] = s.departments;
+    const rows = compareDepartments(aicu, picu, 31);
+    expect(rows.find((r) => r.key === "revenue")).toMatchObject({ a: 90_000, b: 60_000, change: -30_000 });
+    expect(rows.find((r) => r.key === "revenuePerBed")).toMatchObject({ a: 7_500, b: 7_500 });
+    const feb = calculatePeriod(hospitalA(), period("2026-02", 100, 0));
+    const svc = compareServices(niv(s), niv(feb));
+    expect(svc.find((r) => r.key === "price")).toMatchObject({ a: 1500, b: 1800 });
+    expect(svc.find((r) => r.key === "revenue")).toMatchObject({ a: 150_000, b: 180_000, changePct: 0.2 });
   });
 });

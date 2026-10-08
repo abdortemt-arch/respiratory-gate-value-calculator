@@ -5,7 +5,7 @@ import { monthlySummaries, type FinancialSummary, type HospitalData } from "@/do
 import type { SessionUser } from "../auth/session";
 import { createSupabaseServerClient } from "../supabase/server";
 import { loadHospitalsWithRoles } from "./access";
-import { loadHospitalDetail, loadPeople, loadPeriods, type HospitalDetail, type PeriodRecord } from "./repository";
+import { loadHospitalDetail, loadPeople, loadPeriods, loadServiceLibrary, type HospitalDetail, type PeriodRecord } from "./repository";
 
 /** user_id → full name in the caller's organisation. Memoised per request. */
 export const loadPeopleCached = cache(async (): Promise<Record<string, string>> => loadPeople(await createSupabaseServerClient()));
@@ -45,3 +45,5 @@ export const loadPortfolioData = cache(async (user: SessionUser): Promise<Hospit
     }),
   );
 });
+
+export const loadLibrary = cache(async () => loadServiceLibrary(await createSupabaseServerClient()));

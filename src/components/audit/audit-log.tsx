@@ -239,9 +239,11 @@ export function AuditLog({
   return (
     <>
       <form className="no-print mb-4 flex flex-wrap items-end gap-3" action={basePath}>
-        <label className="space-y-1.5 text-sm font-medium">
-          <span className="block">Type</span>
-          <Select name="type" defaultValue={group ?? ""} className="w-60">
+        <div className="space-y-1.5 text-sm font-medium">
+          <label htmlFor="audit-type" className="block">
+            Type
+          </label>
+          <Select id="audit-type" name="type" defaultValue={group ?? ""} className="w-60">
             <option value="">All changes</option>
             {Object.entries(AUDIT_GROUPS).map(([value, g]) => (
               <option key={value} value={value}>
@@ -249,11 +251,13 @@ export function AuditLog({
               </option>
             ))}
           </Select>
-        </label>
+        </div>
         {!hospitalId && data.hospitals.length > 1 ? (
-          <label className="space-y-1.5 text-sm font-medium">
-            <span className="block">Hospital</span>
-            <Select name="hospital" defaultValue={filterHospital ?? ""} className="w-56">
+          <div className="space-y-1.5 text-sm font-medium">
+            <label htmlFor="audit-hospital" className="block">
+              Hospital
+            </label>
+            <Select id="audit-hospital" name="hospital" defaultValue={filterHospital ?? ""} className="w-56">
               <option value="">All hospitals</option>
               {data.hospitals.map((h) => (
                 <option key={h.id} value={h.id}>
@@ -261,7 +265,7 @@ export function AuditLog({
                 </option>
               ))}
             </Select>
-          </label>
+          </div>
         ) : null}
         <label className="flex h-10 items-center gap-2 text-sm">
           <input type="checkbox" name="corrections" value="1" defaultChecked={corrections} className="size-4 accent-brand-blue" />

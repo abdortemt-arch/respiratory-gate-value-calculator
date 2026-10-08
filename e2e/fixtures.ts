@@ -96,3 +96,29 @@ export async function teardown(world: TestWorld): Promise<void> {
   const { data: profiles } = await service.from("profiles").select("user_id").eq("organization_id", orgId);
   await cleanupOrganization(service, orgId, (profiles ?? []).map((p) => p.user_id as string));
 }
+
+/** An empty organisation with one Admin, for the multi-hospital acceptance flow. */
+export interface PlatformWorld {
+  readonly orgId: string;
+  readonly email: string;
+  readonly password: string;
+  readonly service: SupabaseClient;
+}
+
+export async function setupPlatformWorld(): Promise<PlatformWorld> {
+  const service = serviceClient();
+  const run = randomUUID().slice(0, 8);
+  const orgId = randomUUID();
+  const password = `E2e-${randomUUID()}`;
+  const email = `platform-admin-${run}@e2e.test`;
+  await service.from("organizations").insert({ id: orgId, name: `E2E Platform ${run}` }).throwOnError();
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw error;
+  await service.from("profiles").insert({ user_id: data.user.id, organization_id: orgId, full_name: "Amira Hassan", role: "admin" }).throwOnError();
+  return { orgId, email, password, service };
+}
+
+export async function teardownPlatform(world: PlatformWorld): Promise<void> {
+  const { data: profiles } = await world.service.from("profiles").select("user_id").eq("organization_id", world.orgId);
+  await cleanupOrganization(world.service, world.orgId, (profiles ?? []).map((p) => p.user_id as string));
+}
