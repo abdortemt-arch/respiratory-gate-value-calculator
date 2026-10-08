@@ -346,3 +346,34 @@ export async function loadServiceLibrary(db: Db): Promise<LibraryServiceRow[]> {
   if (error) throw error;
   return data.map((s) => ({ ...s, category: pick(SERVICE_CATEGORIES, s.category, "other") as ServiceCategory }));
 }
+
+export interface MemberRow {
+  readonly id: string;
+  readonly userId: string;
+  readonly name: string;
+  readonly orgRole: string;
+  readonly role: "manager" | "viewer";
+  readonly active: boolean;
+}
+
+/** Hospital members (visible to hospital Admins) and the staff who could be added. */
+export async function loadMembers(db: Db, hospitalId: string): Promise<{ members: MemberRow[]; candidates: { userId: string; name: string; orgRole: string }[] }> {
+  const [members, profiles] = await Promise.all([
+    db.from("hospital_members").select("id, user_id, role, active").eq("hospital_id", hospitalId),
+    db.from("profiles").select("user_id, full_name, role, active").order("full_name"),
+  ]);
+  const people = new Map((profiles.data ?? []).map((p) => [p.user_id, p]));
+  const rows: MemberRow[] = (members.data ?? []).map((m) => ({
+    id: m.id,
+    userId: m.user_id,
+    name: people.get(m.user_id)?.full_name ?? "Former user",
+    orgRole: people.get(m.user_id)?.role ?? "viewer",
+    role: m.role === "viewer" ? "viewer" : "manager",
+    active: m.active,
+  }));
+  const memberIds = new Set(rows.map((r) => r.userId));
+  const candidates = (profiles.data ?? [])
+    .filter((p) => p.active && (p.role === "manager" || p.role === "viewer") && !memberIds.has(p.user_id))
+    .map((p) => ({ userId: p.user_id, name: p.full_name, orgRole: p.role }));
+  return { members: rows.sort((a, b) => a.name.localeCompare(b.name)), candidates };
+}

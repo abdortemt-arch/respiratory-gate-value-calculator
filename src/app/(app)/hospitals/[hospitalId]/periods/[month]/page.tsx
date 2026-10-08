@@ -180,7 +180,7 @@ export default async function PeriodPage({ params }: PageProps<"/hospitals/[hosp
             basis="Cost items at this month's versions"
             footer={<Delta change={previous && previous.costs.value !== null && summary.costs.value !== null ? summary.costs.value - previous.costs.value : null} higherIsBetter={false} suffix={`vs ${monthLabel(prevMonth, "short")}`} />}
           />
-          <FigureCard title="Documented savings" figure={summary.savings} basis="Recorded cost avoidance" status={summary.savings.status === "missing" ? <Badge tone="neutral">None recorded</Badge> : undefined} />
+          <FigureCard title="Documented savings" figure={summary.savings} missingLabel="None recorded" basis="Recorded cost avoidance" status={summary.savings.status === "missing" ? <Badge tone="neutral">None recorded</Badge> : undefined} />
           <FigureCard
             title="Net service-line value"
             figure={summary.net}
@@ -222,6 +222,11 @@ export default async function PeriodPage({ params }: PageProps<"/hospitals/[hosp
           </CardContent>
         </Card>
 
+        {correction ? (
+          <Alert tone="caution" title={`This month is ${PERIOD_STATUSES[period.status].toLowerCase()}`}>
+            Changes here are historical corrections: each needs a reason and is recorded in the audit log with the previous and new value.
+          </Alert>
+        ) : null}
         {closed && !correction ? (
           <Alert tone="info" title={`This month is ${PERIOD_STATUSES[period.status].toLowerCase()}`}>
             Its figures are protected. Ask an Admin if a correction is needed.

@@ -146,7 +146,8 @@ export function aggregate(
     savingsByCategory: totals.savingsByCategory,
     departments: [...departmentsMap.values()],
     stats,
-    kpis: kpisFor(config, totals.revenue.value, totals.costs.value, stats, costLines, days || 1, Math.max(inRange.length, 1)),
+    // Occupancy basis: the beds behind the latest month's bed-days.
+    kpis: kpisFor(config, totals.revenue.value, totals.costs.value, stats, costLines, days || 1, Math.max(inRange.length, 1), inRange.at(-1)?.kpis.occupancyBeds ?? null),
     issues: totals.issues,
   };
 }

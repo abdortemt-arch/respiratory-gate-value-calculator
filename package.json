@@ -16,6 +16,7 @@
     "db:types": "supabase gen types typescript --local > src/server/supabase/database.types.ts",
     "test:db": "node scripts/db/with-local-supabase.mjs vitest run supabase/tests",
     "user:create": "tsx --env-file-if-exists=.env.local scripts/create-user.ts",
+    "db:demo": "tsx --env-file-if-exists=.env.local scripts/db/demo-data.ts",
     "test:e2e": "node scripts/db/with-local-supabase.mjs playwright test",
     "db:env": "node scripts/ci/write-local-env.mjs"
   },

@@ -41,7 +41,7 @@ export function compareSummaries(a: FinancialSummary, b: FinancialSummary): Metr
     row("net", "Net value", "money", a.net.value, b.net.value),
     row("contribution", "Service net contribution", "money", contribution(a), contribution(b)),
     row("volume", "Service volume (all units)", "number", totalVolume(a), totalVolume(b)),
-    row("revenuePerBed", "Revenue per bed", "money", a.kpis.revenuePerBed, b.kpis.revenuePerBed),
+    row("revenuePerBed", "Revenue per RT-covered bed", "money", a.kpis.revenuePerBed, b.kpis.revenuePerBed),
     row("revenuePerOccupiedBed", "Revenue per occupied bed", "money", a.kpis.revenuePerOccupiedBed, b.kpis.revenuePerOccupiedBed),
     row("revenuePerRt", "Revenue per RT (FTE)", "money", a.kpis.revenuePerRt, b.kpis.revenuePerRt),
     row("costPerPatient", "Cost per patient", "money", a.kpis.costPerPatient, b.kpis.costPerPatient, false),

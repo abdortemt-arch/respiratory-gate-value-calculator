@@ -51,7 +51,8 @@ export async function createHospital(form: FormData): Promise<ActionResult> {
     .insert({
       ...parsed.values,
       organization_id: auth.user.organizationId,
-      active: form.get("active") !== "off",
+      // The form sends a hidden "off" fallback before the checkbox's "on".
+      active: form.getAll("active").includes("on"),
     })
     .select("id")
     .single();

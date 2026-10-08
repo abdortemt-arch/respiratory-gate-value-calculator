@@ -190,7 +190,7 @@ export default async function PortfolioComparisonsPage({ searchParams }: PagePro
                       <th scope="col" className={thNum}>Revenue</th>
                       <th scope="col" className={thNum}>Operating cost</th>
                       <th scope="col" className={thNum}>Net value</th>
-                      <th scope="col" className={thNum}>Revenue per bed</th>
+                      <th scope="col" className={thNum}>Revenue per RT-covered bed</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">

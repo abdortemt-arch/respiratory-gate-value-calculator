@@ -148,6 +148,7 @@ export default async function HospitalOverviewPage({ params, searchParams }: Pag
                 title="Documented savings"
                 figure={summary.savings}
                 basis="Recorded cost avoidance (not forecasts)"
+                missingLabel="None recorded"
                 status={summary.savings.status === "missing" ? <Badge tone="neutral">None recorded</Badge> : undefined}
                 footer={<Delta change={change(previous?.savings.value, summary.savings.value)} suffix={prevLabel} />}
               />
@@ -188,12 +189,24 @@ export default async function HospitalOverviewPage({ params, searchParams }: Pag
                     <dt className="text-muted">Departments</dt>
                     <dd className="figure text-right font-medium">{activeDepartments.length}</dd>
                     <dt className="text-muted">Beds</dt>
-                    <dd className="figure text-right font-medium">{beds ?? <span className="text-caution">Unknown</span>}</dd>
+                    <dd className="figure text-right font-medium">
+                      {beds ?? <span className="text-caution">Unknown</span>}
+                      {summary.kpis.coveredBeds !== null && summary.kpis.coveredBeds !== beds ? (
+                        <span className="block text-xs font-normal text-muted">{summary.kpis.coveredBeds} RT-covered</span>
+                      ) : null}
+                    </dd>
                     <dt className="text-muted">Occupancy</dt>
                     <dd className="figure text-right font-medium">
-                      {summary.kpis.occupancy !== null ? formatPercent(summary.kpis.occupancy) : <span className="text-xs font-normal text-caution">Needs occupied bed-days</span>}
+                      {summary.kpis.occupancy !== null ? (
+                        <>
+                          {formatPercent(summary.kpis.occupancy)}
+                          <span className="block text-xs font-normal text-muted">of {summary.kpis.occupancyBeds} beds reporting bed-days</span>
+                        </>
+                      ) : (
+                        <span className="text-xs font-normal text-caution">Needs occupied bed-days</span>
+                      )}
                     </dd>
-                    <dt className="text-muted">Revenue per bed</dt>
+                    <dt className="text-muted">Revenue per RT-covered bed</dt>
                     <dd className="text-right"><Money value={summary.kpis.revenuePerBed} compact /></dd>
                     <dt className="text-muted">Cost per patient</dt>
                     <dd className="text-right"><Money value={summary.kpis.costPerPatient} compact /></dd>

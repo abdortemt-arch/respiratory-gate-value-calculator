@@ -78,7 +78,12 @@ export interface Stats {
 }
 
 export interface Kpis {
+  /** Whole-hospital beds (total beds, else the sum of department beds). */
   readonly beds: number | null;
+  /** Beds in active departments with respiratory therapy coverage (basis for per-bed KPIs). */
+  readonly coveredBeds: number | null;
+  /** Beds of the units whose occupied bed-days were recorded (basis for occupancy). */
+  readonly occupancyBeds: number | null;
   readonly days: number;
   readonly occupancy: number | null;
   readonly rtFte: number | null;
@@ -299,7 +304,7 @@ export function calculatePeriod(config: HospitalConfig, period: PeriodInput): Fi
     costLines,
     departments,
     stats,
-    kpis: kpisFor(config, totals.revenue.value, totals.costs.value, stats, costLines, daysInMonth(month), 1),
+    kpis: kpisFor(config, totals.revenue.value, totals.costs.value, stats, costLines, daysInMonth(month), 1, occupancyBedsFor(config, period.stats)),
   };
 }
 
@@ -358,6 +363,24 @@ export function hospitalBeds(config: HospitalConfig): number | null {
   return sumOrNull(config.departments.filter((d) => d.active).map((d) => d.beds));
 }
 
+/** Beds in active departments covered by respiratory therapy; the hospital's beds when none are recorded. */
+export function coveredBeds(config: HospitalConfig): number | null {
+  return sumOrNull(config.departments.filter((d) => d.active && d.rtCoverage).map((d) => d.beds)) ?? hospitalBeds(config);
+}
+
+/**
+ * Occupancy compares occupied bed-days with the beds they were counted in: the
+ * whole hospital when a hospital-wide figure was entered, otherwise the
+ * departments that reported bed-days.
+ */
+export function occupancyBedsFor(config: HospitalConfig, entries: readonly StatsEntry[]): number | null {
+  const hospitalWide = entries.find((s) => s.departmentId === null);
+  if (hospitalWide && hospitalWide.occupiedBedDays !== null) return hospitalBeds(config);
+  const reported = new Set(entries.filter((s) => s.departmentId !== null && s.occupiedBedDays !== null).map((s) => s.departmentId));
+  if (reported.size === 0) return null;
+  return sumOrNull(config.departments.filter((d) => reported.has(d.id)).map((d) => d.beds));
+}
+
 export function kpisFor(
   config: HospitalConfig,
   revenue: number | null,
@@ -366,18 +389,22 @@ export function kpisFor(
   costLines: readonly CostLine[],
   days: number,
   monthsCount: number,
+  occupancyBeds: number | null,
 ): Kpis {
   const beds = hospitalBeds(config);
+  const covered = coveredBeds(config);
   const rtLines = costLines.filter((c) => c.isRtStaff && c.quantity !== null);
   // FTE per month, averaged across the months summarised.
   const rtFte = rtLines.length ? rtLines.reduce((s, c) => s + (c.quantity as number), 0) / monthsCount : null;
   const avgOccupiedBeds = div(stats.occupiedBedDays, days);
   return {
     beds,
+    coveredBeds: covered,
+    occupancyBeds,
     days,
-    occupancy: beds === null ? null : div(avgOccupiedBeds, beds),
+    occupancy: div(avgOccupiedBeds, occupancyBeds),
     rtFte,
-    revenuePerBed: div(revenue, beds),
+    revenuePerBed: div(revenue, covered),
     revenuePerOccupiedBed: div(revenue, avgOccupiedBeds),
     revenuePerRt: div(revenue, rtFte),
     costPerPatient: div(costs, stats.patients),

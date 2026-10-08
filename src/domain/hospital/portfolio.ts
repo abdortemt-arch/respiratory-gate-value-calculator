@@ -25,6 +25,8 @@ export interface PortfolioHospital {
   readonly name: string;
   readonly code: string;
   readonly active: boolean;
+  /** Has recorded at least one monthly period (hospitals using only the workbook model have not). */
+  readonly reporting: boolean;
   readonly month: FinancialSummary | null;
   readonly previous: FinancialSummary | null;
   readonly ytd: FinancialSummary | null;
@@ -94,6 +96,7 @@ export function buildPortfolio(hospitals: readonly HospitalData[], month: Month)
       name: h.config.name,
       code: h.config.code,
       active: h.active,
+      reporting: h.periods.length > 0,
       month: current,
       previous,
       ytd: ytdSummary,
@@ -104,7 +107,8 @@ export function buildPortfolio(hospitals: readonly HospitalData[], month: Month)
   });
 
   const withData = rows.filter((r) => r.month !== null);
-  const expected = rows.filter((r) => r.active || r.month !== null).length;
+  // Active hospitals that report monthly are expected; one without this month's data makes totals partial.
+  const expected = rows.filter((r) => (r.active && r.reporting) || r.month !== null).length;
   const totals = {
     revenue: sumFigures(rows.map((r) => r.month?.revenue ?? null), expected),
     costs: sumFigures(rows.map((r) => r.month?.costs ?? null), expected),

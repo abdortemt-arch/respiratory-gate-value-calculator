@@ -38,6 +38,7 @@ async function createHospital(page: Page, name: string, code: string) {
   await page.getByLabel("Hospital type").selectOption("teaching");
   await page.getByRole("button", { name: "Create hospital and continue" }).click();
   await page.waitForURL(/\/hospitals\/[0-9a-f-]{36}\/setup\/departments$/);
+  await expect(page.getByText("This hospital is inactive")).toHaveCount(0);
   return /\/hospitals\/([0-9a-f-]{36})\//.exec(page.url())![1];
 }
 
@@ -183,4 +184,98 @@ test("18–20: Hospital B prices NIV differently, and the hospitals compare side
   await page.goto("/hospitals?month=2026-01");
   await expect(page.getByRole("link", { name: "Hospital A" }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Hospital B" }).first()).toBeVisible();
+});
+
+test("costs, month close and an audited Admin correction", async ({ page }) => {
+  await signIn(page);
+  // Staffing cost per FTE from January
+  await page.goto(`/hospitals/${hospitalA}/staffing`);
+  await page.getByLabel("Role / position").fill("Respiratory therapist");
+  await page.getByLabel("Monthly cost per FTE (EGP)").fill("25000");
+  await page.getByLabel("Effective from").first().fill("2026-01");
+  await page.getByRole("button", { name: "Add role" }).click();
+  await expect(page.getByText("Respiratory therapist added.")).toBeVisible();
+
+  // January: 4 FTE → operating cost EGP 100,000; net = 150,000 − 100,000
+  await page.goto(`/hospitals/${hospitalA}/periods/2026-01`);
+  await page.getByLabel("Respiratory therapist Quantity").fill("4");
+  await page.getByRole("button", { name: "Save quantities" }).click();
+  await expect(page.locator("#costs")).toContainText("EGP 100,000");
+  const results = page.getByRole("region", { name: "Results" });
+  await expect(results).toContainText("EGP 100K");
+  await expect(results).toContainText("EGP 50K");
+
+  // Finalize, then correct with a reason
+  await page.getByRole("button", { name: "Finalize month" }).click();
+  await expect(page.getByText("Status changed to finalized.")).toBeVisible();
+  await expect(page.getByText("Changes here are historical corrections")).toBeVisible();
+  await enterVolume(page, "NIV — AICU", "65");
+  const save = page.getByRole("button", { name: "Save volumes" });
+  await expect(save).toBeDisabled();
+  await page.locator("#activity").getByLabel("Reason for correction").fill("Late AICU charts added");
+  await save.click();
+  await expect(page.locator("#activity tfoot")).toContainText("EGP 157,500");
+  await expect(page.getByText("Corrected after finalization")).toBeVisible();
+
+  // The correction is in the audit log with its reason, hospital and period
+  await page.goto(`/hospitals/${hospitalA}/audit?corrections=1`);
+  const row = page.getByRole("row", { name: /NIV — AICU/ }).first();
+  await expect(row).toContainText("Correction");
+  await expect(row).toContainText("January 2026");
+  await expect(row).toContainText("60");
+  await expect(row).toContainText("65");
+  await expect(row).toContainText("Late AICU charts added");
+
+  // Lock; unlocking needs a reason
+  await page.goto(`/hospitals/${hospitalA}/periods/2026-01`);
+  await page.getByRole("button", { name: "Lock month" }).click();
+  await expect(page.getByText("Status changed to locked.")).toBeVisible();
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  await page.getByLabel("Reason", { exact: true }).fill("Auditor query");
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.getByText("Status changed to finalized.")).toBeVisible();
+});
+
+test("a hospital manager sees and edits only their own hospital", async ({ page }) => {
+  const email = `manager-b-${Date.now()}@e2e.test`;
+  const password = `Mgr-${Date.now()}-pass`;
+  const { data, error } = await world.service.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw error;
+  await world.service.from("profiles").insert({ user_id: data.user.id, organization_id: world.orgId, full_name: "Manager B", role: "manager" }).throwOnError();
+  await world.service.from("hospital_members").insert({ hospital_id: hospitalB, user_id: data.user.id, role: "manager" }).throwOnError();
+
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/hospitals$/);
+  await expect(page.getByRole("link", { name: "Hospital B" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Hospital A" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Add hospital" })).toHaveCount(0);
+
+  const res = await page.goto(`/hospitals/${hospitalA}`);
+  expect(res?.status()).toBe(404);
+
+  // Draft month: editable; once finalized: read-only for the manager
+  await page.goto(`/hospitals/${hospitalB}/periods/2026-01`);
+  await enterVolume(page, "NIV — ICU", "110");
+  await page.getByRole("button", { name: "Save volumes" }).click();
+  await expect(page.locator("#activity tfoot")).toContainText("EGP 264,000");
+  await page.getByRole("button", { name: "Finalize month" }).click();
+  await expect(page.getByText("This month is finalized")).toBeVisible();
+  await expect(page.getByLabel("NIV — ICU Volume")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save volumes" })).toHaveCount(0);
+  await expect(page.getByText(/Only an Admin can lock, reopen or correct/)).toBeVisible();
+});
+
+test("hospital pages fit a phone screen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  const h = `/hospitals/${hospitalA}`;
+  for (const path of [h, `${h}/periods`, `${h}/periods/2026-01`, `${h}/departments`, `${h}/services`, `${h}/pricing`, `${h}/staffing`, `${h}/comparisons`, `${h}/reports`, `${h}/settings`, "/comparisons", "/hospitals/new"]) {
+    await page.goto(path);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, path).toBeLessThanOrEqual(0);
+  }
 });

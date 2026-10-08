@@ -24,8 +24,17 @@ export function FigureValue({
   return <span className={cn("figure font-semibold", className)}>{compact ? formatEgpCompact(figure.value) : formatEgp(figure.value)}</span>;
 }
 
-export function FigureStatusBadge({ figure, completeLabel = "Calculated" }: { figure: Figure | null | undefined; completeLabel?: string }) {
-  if (!figure || figure.status === "missing") return <Badge tone="caution">Data required</Badge>;
+export function FigureStatusBadge({
+  figure,
+  completeLabel = "Calculated",
+  missingLabel,
+}: {
+  figure: Figure | null | undefined;
+  completeLabel?: string;
+  /** A neutral label for figures where "missing" means "none recorded". */
+  missingLabel?: string;
+}) {
+  if (!figure || figure.status === "missing") return missingLabel ? <Badge tone="neutral">{missingLabel}</Badge> : <Badge tone="caution">Data required</Badge>;
   if (figure.status === "partial") return <Badge tone="caution">Partial data</Badge>;
   return <Badge tone="blue">{completeLabel}</Badge>;
 }
@@ -77,6 +86,7 @@ export function FigureCard({
   accent,
   value,
   status,
+  missingLabel,
   className,
 }: {
   title: string;
@@ -87,6 +97,8 @@ export function FigureCard({
   footer?: ReactNode;
   status?: ReactNode;
   accent?: "orange" | "blue";
+  /** Shown instead of the value when the figure is missing. */
+  missingLabel?: string;
   className?: string;
 }) {
   const issues = figure?.issues ?? [];
@@ -101,9 +113,9 @@ export function FigureCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium text-ink-soft">{title}</h3>
-        {status ?? (figure !== undefined ? <FigureStatusBadge figure={figure} /> : null)}
+        {status ?? (figure !== undefined ? <FigureStatusBadge figure={figure} missingLabel={missingLabel} /> : null)}
       </div>
-      <div className="text-2xl leading-tight">{value ?? <FigureValue figure={figure} compact className={figure?.value === null ? "text-lg" : undefined} />}</div>
+      <div className="text-2xl leading-tight">{value ?? <FigureValue figure={figure} compact missingLabel={missingLabel} className={!figure || figure.status === "missing" ? "text-lg" : undefined} />}</div>
       {basis ? <p className="figure text-xs leading-relaxed text-muted">{basis}</p> : null}
       {issues.length > 0 ? (
         <ul className="space-y-0.5 text-xs text-caution">

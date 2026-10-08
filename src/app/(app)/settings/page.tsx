@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { can, ROLE_LABELS } from "@/domain/access";
 import { PageHeader } from "@/components/layout/app-shell";
+import { ServiceLibrary, type LibraryRow } from "@/components/settings/service-library";
 import { OrganizationNameForm } from "@/components/settings/small-forms";
 import { UserAdmin, type ManagedUser } from "@/components/settings/user-admin";
 import { Alert } from "@/components/ui/alert";
@@ -10,7 +11,17 @@ import { requireUser } from "@/server/auth/session";
 import { loadVisibleHospitals } from "@/server/hospitals/access";
 import { createSupabaseAdminClient, isAdminClientConfigured } from "@/server/supabase/admin";
 import { createSupabaseServerClient } from "@/server/supabase/server";
-import { createUser, resetUserPassword, setUserActive, updateOrganizationName, updateUserRole } from "./actions";
+import {
+  createLibraryService,
+  createUser,
+  resetUserPassword,
+  setLibraryServiceActive,
+  setUserActive,
+  updateLibraryService,
+  updateOrganizationName,
+  updateUserRole,
+} from "./actions";
+import { isOneOf, SERVICE_CATEGORIES } from "@/domain/hospital";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -43,11 +54,29 @@ async function loadUsers(organizationId: string, selfProfileId: string): Promise
   }));
 }
 
+async function loadLibrary(): Promise<LibraryRow[]> {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: services }, { data: provided }] = await Promise.all([
+    supabase.from("services").select("id, name, code, category, description, active").order("name"),
+    supabase.from("hospital_services").select("service_id, active"),
+  ]);
+  return (services ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    code: s.code,
+    category: isOneOf(SERVICE_CATEGORIES, s.category) ? s.category : "other",
+    description: s.description,
+    active: s.active,
+    hospitals: (provided ?? []).filter((p) => p.service_id === s.id && p.active).length,
+  }));
+}
+
 export default async function SettingsPage() {
   const user = await requireUser();
   const isAdmin = can(user.role, "manage_users");
   const users = isAdmin ? await loadUsers(user.organizationId, user.profileId) : [];
   const hospitals = isAdmin ? (await loadVisibleHospitals()).filter((h) => h.active) : [];
+  const library = user.role === "viewer" ? [] : await loadLibrary();
 
   return (
     <>
@@ -58,6 +87,7 @@ export default async function SettingsPage() {
       <nav aria-label="Settings sections" className="no-print mb-6 flex flex-wrap gap-2 text-sm">
         {[
           ["account", "Your account"],
+          ...(user.role !== "viewer" ? [["services", "Service library"]] : []),
           ...(isAdmin ? [["users", "Users"], ["organisation", "Organisation"]] : []),
         ].map(([id, label]) => (
           <a key={id} href={`#${id}`} className="rounded-full border border-line bg-card px-3 py-1 font-medium text-ink-soft hover:border-brand-blue">
@@ -87,6 +117,28 @@ export default async function SettingsPage() {
             </LinkButton>
           </CardContent>
         </Card>
+
+        {user.role !== "viewer" ? (
+          <Card id="services" className="scroll-mt-20">
+            <CardHeader>
+              <CardTitle>Service library</CardTitle>
+              <CardDescription>
+                Respiratory therapy services shared by all hospitals, so the same service can be compared across hospitals. Each
+                hospital chooses what it provides and sets its own prices.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ServiceLibrary
+                rows={library}
+                canAdd={can(user.role, "edit_hospital_config")}
+                canEdit={can(user.role, "manage_organization")}
+                create={createLibraryService}
+                update={updateLibraryService}
+                setActive={setLibraryServiceActive}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
 
         {isAdmin ? (
           <>

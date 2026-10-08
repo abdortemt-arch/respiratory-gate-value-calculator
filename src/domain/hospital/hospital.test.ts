@@ -309,7 +309,25 @@ describe("costs follow their own effective-dated versions", () => {
     expect(jan.kpis.costPerPatient).toBeCloseTo(155_000 / 80, 6);
     expect(jan.kpis.costPerVentilatorDay).toBeCloseTo(155_000 / 300, 6);
     expect(jan.kpis.revenuePerOccupiedBed).toBeCloseTo(150_000 / (4650 / 31), 6);
+    // Hospital-wide bed-days → whole-hospital beds; per-bed revenue uses RT-covered beds (12 + 8).
     expect(jan.kpis.occupancy).toBeCloseTo(4650 / 31 / 200, 6);
+    expect(jan.kpis.coveredBeds).toBe(20);
+    expect(jan.kpis.revenuePerBed).toBe(150_000 / 20);
+  });
+
+  it("occupancy uses the beds of the departments that reported bed-days", () => {
+    const byDept = calculatePeriod(
+      config,
+      period("2026-01", 50, 50, {
+        stats: [
+          { departmentId: "a-aicu", patients: 20, admissions: null, occupiedBedDays: 310, ventilatorDays: null },
+          { departmentId: "a-picu", patients: 10, admissions: null, occupiedBedDays: null, ventilatorDays: null },
+        ],
+      }),
+    );
+    expect(byDept.kpis.occupancyBeds).toBe(12);
+    expect(byDept.kpis.occupancy).toBeCloseTo(310 / 31 / 12, 6);
+    expect(byDept.kpis.beds).toBe(200);
   });
 
   it("a per-unit cost without a quantity makes costs partial", () => {
@@ -386,7 +404,9 @@ describe("portfolio", () => {
   const data: HospitalData[] = [
     { config: hospitalA(), active: true, periods: [period("2026-01", 60, 40), period("2026-02", 100, 0)] },
     { config: hospitalB, active: true, periods: [bPeriod("2026-01", 100), bPeriod("2026-02", 110)] },
-    { config: { ...hospitalA(), id: "hosp-c", name: "Hospital C", code: "HC" }, active: true, periods: [] },
+    { config: { ...hospitalA(), id: "hosp-c", name: "Hospital C", code: "HC" }, active: true, periods: [period("2026-01", 10, 0)] },
+    // Not reporting monthly (e.g. a workbook-model-only hospital): never counted as missing.
+    { config: { ...hospitalA(), id: "hosp-d", name: "Hospital D", code: "HD" }, active: true, periods: [] },
   ];
 
   it("finds the latest month with data", () => {
@@ -403,7 +423,8 @@ describe("portfolio", () => {
     // Hospital A has no costs, so portfolio net only includes Hospital B and is partial.
     expect(p.totals.net.value).toBe(264_000 - 110_000);
     expect(p.totals.net.status).toBe("partial");
-    expect(p.ytd.revenue.value).toBe(150_000 + 180_000 + 240_000 + 264_000);
+    expect(p.ytd.revenue.value).toBe(150_000 + 180_000 + 240_000 + 264_000 + 15_000);
+    expect(p.hospitals.find((h) => h.name === "Hospital D")?.reporting).toBe(false);
   });
 
   it("names the highest-value and fastest-growing hospitals", () => {

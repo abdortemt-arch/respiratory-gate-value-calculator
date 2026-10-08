@@ -73,7 +73,9 @@ export default async function PortfolioPage({ searchParams }: PageProps<"/hospit
             <FigureCard
               title="Hospitals"
               value={<span className="figure font-semibold">{hospitals.length}</span>}
-              basis={`${active} active · ${portfolio.hospitalsWithData} with data for ${monthLabel(month, "short")}`}
+              basis={`${active} active · ${portfolio.hospitalsWithData} with data for ${monthLabel(month, "short")}${
+                portfolio.hospitals.some((h) => !h.reporting) ? ` · ${portfolio.hospitals.filter((h) => !h.reporting).length} not reporting monthly yet` : ""
+              }`}
               status={<Badge tone="neutral">Portfolio</Badge>}
             />
             <FigureCard
@@ -81,10 +83,10 @@ export default async function PortfolioPage({ searchParams }: PageProps<"/hospit
               figure={portfolio.totals.revenue}
               accent="blue"
               basis="Σ service volume × effective price, all hospitals"
-              footer={<FigureValue figure={portfolio.ytd.revenue} compact className="text-xs font-medium text-muted" missingLabel="YTD: no data" />}
+              footer={<span className="text-xs text-muted">YTD <FigureValue figure={portfolio.ytd.revenue} compact missingLabel="no data" className="font-medium" /></span>}
             />
             <FigureCard title={`Operating cost · ${monthLabel(month, "short")}`} figure={portfolio.totals.costs} basis="Staffing, consumables, equipment and contracts" footer={<span className="text-xs text-muted">YTD <FigureValue figure={portfolio.ytd.costs} compact missingLabel="no data" className="font-medium" /></span>} />
-            <FigureCard title={`Documented savings · ${monthLabel(month, "short")}`} figure={portfolio.totals.savings} basis="Cost avoidance recorded per month (not forecasts)" footer={<span className="text-xs text-muted">YTD <FigureValue figure={portfolio.ytd.savings} compact missingLabel="none recorded" className="font-medium" /></span>} />
+            <FigureCard title={`Documented savings · ${monthLabel(month, "short")}`} figure={portfolio.totals.savings} missingLabel="None recorded" basis="Cost avoidance recorded per month (not forecasts)" footer={<span className="text-xs text-muted">YTD <FigureValue figure={portfolio.ytd.savings} compact missingLabel="none recorded" className="font-medium" /></span>} />
             <FigureCard
               title={`Net service-line value · ${monthLabel(month, "short")}`}
               figure={portfolio.totals.net}
@@ -227,10 +229,14 @@ export default async function PortfolioPage({ searchParams }: PageProps<"/hospit
                           {r.active ? null : <Badge tone="caution" className="ml-2">Inactive</Badge>}
                         </td>
                         <td className={td}>
-                          {r.month?.status ? <Badge tone={r.month.status === "draft" ? "neutral" : "blue"}>{PERIOD_STATUSES[r.month.status]}</Badge> : <span className="text-xs text-muted">No period</span>}
+                          {r.month?.status ? (
+                            <Badge tone={r.month.status === "draft" ? "neutral" : "blue"}>{PERIOD_STATUSES[r.month.status]}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted">{r.reporting ? "No period" : "Not reporting monthly"}</span>
+                          )}
                         </td>
                         <td className={tdNum}><FigureValue figure={r.month?.revenue} compact missingLabel="—" className="font-normal" /></td>
-                        <td className={tdNum}><FigureValue figure={r.month?.costs} compact missingLabel="Data required" className="font-normal" /></td>
+                        <td className={tdNum}><FigureValue figure={r.month?.costs} compact missingLabel={r.month ? "Data required" : "—"} className="font-normal" /></td>
                         <td className={tdNum}><FigureValue figure={r.month?.net} compact missingLabel="—" /></td>
                         <td className={tdNum}><Delta change={r.revenueChange} pct={r.revenueGrowth} /></td>
                       </tr>

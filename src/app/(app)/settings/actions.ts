@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isStaffRole, type AppRole } from "@/domain/access";
 import { parseInputText } from "@/domain/calculations/validation";
+import { isOneOf, SERVICE_CATEGORIES } from "@/domain/hospital";
 import { requestOrigin } from "@/server/auth/redirects";
 import { authorize } from "@/server/auth/session";
 import { authorizeHospital } from "@/server/hospitals/access";
@@ -191,5 +192,54 @@ export async function updateSensitivities(hospitalId: string, low: string, mid: 
     .select("id");
   if (error || !data?.length) return { ok: false, error: "Could not update the sensitivities." };
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+function libraryFields(form: FormData) {
+  const name = String(form.get("name") ?? "").trim().slice(0, 120);
+  const code = String(form.get("code") ?? "").trim().toUpperCase().slice(0, 20);
+  const category = String(form.get("category") ?? "other");
+  if (!name) return { error: "Enter the service name." } as const;
+  if (code && !/^[A-Z0-9][A-Z0-9_-]{0,19}$/.test(code)) return { error: "Codes use letters, digits, - and _." } as const;
+  if (!isOneOf(SERVICE_CATEGORIES, category)) return { error: "Choose a category." } as const;
+  const description = String(form.get("description") ?? "").trim().slice(0, 1000) || null;
+  return { values: { name, code: code || null, category, description } } as const;
+}
+
+/** Add a service to the organisation's library (Admins and managers). */
+export async function createLibraryService(form: FormData): Promise<ActionResult> {
+  const auth = await authorize("edit_hospital_config");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const parsed = libraryFields(form);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("services").insert({ ...parsed.values, organization_id: auth.user.organizationId });
+  if (error) return { ok: false, error: error.code === "23505" ? "A service with this name already exists." : "Could not add the service." };
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+/** Rename or describe a library service (Admin). Hospitals keep their prices and history. */
+export async function updateLibraryService(serviceId: string, form: FormData): Promise<ActionResult> {
+  const auth = await authorize("manage_organization");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!UUID.test(serviceId)) return { ok: false, error: "Unknown service." };
+  const parsed = libraryFields(form);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("services").update(parsed.values).eq("id", serviceId).select("id");
+  if (error || !data?.length) return { ok: false, error: error?.code === "23505" ? "A service with this name already exists." : "Could not save the service." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function setLibraryServiceActive(serviceId: string, active: boolean): Promise<ActionResult> {
+  const auth = await authorize("manage_organization");
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!UUID.test(serviceId)) return { ok: false, error: "Unknown service." };
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("services").update({ active }).eq("id", serviceId).select("id");
+  if (error || !data?.length) return { ok: false, error: "Could not change the service." };
+  revalidatePath("/settings");
   return { ok: true };
 }

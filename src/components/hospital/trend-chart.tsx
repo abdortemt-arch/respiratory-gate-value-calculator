@@ -14,7 +14,7 @@ export function TrendChart({ points, selected }: { points: readonly TrendPoint[]
   if (points.length === 0) return <p className="text-sm text-muted">No months recorded yet.</p>;
   const max = Math.max(1, ...points.flatMap((p) => [p.revenue ?? 0, p.costs ?? 0]));
   return (
-    <figure className="space-y-3">
+    <figure className="relative space-y-3">
       <div className="flex items-center gap-4 text-xs text-ink-soft" aria-hidden>
         <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: CHART.revenue }} /> Revenue</span>
         <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm" style={{ background: CHART.cost }} /> Operating cost</span>
@@ -46,7 +46,9 @@ export function TrendChart({ points, selected }: { points: readonly TrendPoint[]
           ))}
         </div>
       </div>
-      <table className="sr-only">
+      {/* Tables ignore width: 1px, so the screen-reader copy is wrapped. */}
+      <div className="sr-only">
+      <table>
         <caption>Revenue and operating cost by month</caption>
         <thead>
           <tr>
@@ -67,6 +69,7 @@ export function TrendChart({ points, selected }: { points: readonly TrendPoint[]
           ))}
         </tbody>
       </table>
+      </div>
     </figure>
   );
 }
