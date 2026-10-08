@@ -65,7 +65,7 @@ Every push to the branch now creates a **Preview** deployment. Its permanent bra
 
 ## 4. Migrations and verification (automated)
 
-Triggered by pushing tags on the commit under test (they only run the workflow; nothing is merged):
+Started explicitly — by Claude through the GitHub API, or by you in **GitHub → Actions → Staging → Run workflow** (branch `claude/step1-workbook-analysis`, mode `check`, `migrate` or `verify`). From your own clone, tags work too (they only run the workflow; nothing is merged):
 
 ```bash
 git tag staging-check-1   && git push origin staging-check-1    # read-only: migration state, dry-run plan, Auth/API checks
